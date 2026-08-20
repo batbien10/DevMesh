@@ -1,0 +1,20 @@
+build/
+.gradle/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+out/
+
+# DevMesh 本地状态：只提交配置模板和内置 Skills。
+.devmesh/*
+!.devmesh/config.yaml.example
+!.devmesh/skills/
+!.devmesh/skills/**
+
+# 本地开发工具配置。
+.claude/
+CLAUDE.md
+
+# 临时空文件
+lyww.qq

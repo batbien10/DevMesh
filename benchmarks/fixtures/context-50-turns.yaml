@@ -1,0 +1,10 @@
+version: 1
+rounds: 50
+context_window_tokens: 32768
+max_output_tokens: 4096
+user_message_characters: 700
+assistant_message_characters: 1200
+tool_every_n_rounds: 5
+tool_result_characters: 5000
+tool_followup_characters: 600
+summary_text: "Earlier implementation decisions, verified files, open tasks, and tool outcomes were summarized deterministically for this benchmark."

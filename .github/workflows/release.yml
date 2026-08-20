@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Test and build
+        run: ./gradlew test shadowJar
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes_file=".github/release-notes/${GITHUB_REF_NAME}.md"
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            if [ -f "${notes_file}" ]; then
+              gh release edit "${GITHUB_REF_NAME}" --title "DevMesh ${GITHUB_REF_NAME}" --notes-file "${notes_file}"
+            fi
+            gh release upload "${GITHUB_REF_NAME}" build/libs/devmesh.jar --clobber
+          elif [ -f "${notes_file}" ]; then
+            gh release create "${GITHUB_REF_NAME}" build/libs/devmesh.jar --title "DevMesh ${GITHUB_REF_NAME}" --notes-file "${notes_file}"
+          else
+            gh release create "${GITHUB_REF_NAME}" build/libs/devmesh.jar --title "DevMesh ${GITHUB_REF_NAME}" --generate-notes
+          fi

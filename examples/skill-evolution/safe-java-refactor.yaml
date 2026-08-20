@@ -1,0 +1,18 @@
+name: safe-java-refactor
+description: A behavior-preserving Java refactoring procedure distilled from successful Agent runs
+when_to_use: Use for internal Java refactors with existing tests; do not use when behavior or public APIs should change
+tags: [java, refactor, verification]
+instructions: |
+  Read the affected implementation and focused tests before editing.
+  State the externally visible invariants that must remain unchanged.
+  Make one cohesive transformation at a time and avoid unrelated formatting churn.
+  Run focused tests after the change, then run the full suite before completion.
+  If the tests and the stated invariants disagree, stop and report the ambiguity instead of guessing.
+failure_modes:
+  - A green unit test suite may not cover public compatibility or file-system side effects
+  - Broad formatting changes can hide semantic edits during review
+validation_checks:
+  - Focused tests for the affected package pass
+  - The full test suite passes
+  - The diff contains no unrelated files
+source_trace: replace-with-the-source-session-or-trace-id

@@ -1,0 +1,22 @@
+# Verified Skill Evolution gate.
+# For a production benchmark, raise min_agent_runs and min_paired_outcome_cases.
+min_agent_runs: 1
+max_failed_runs: 0
+max_tool_errors: 0
+max_retries: 2
+max_compactions: 2
+max_malformed_records: 0
+min_tool_success_rate: 0.95
+max_peak_context_pressure: 0.95
+required_tools: []
+forbidden_tools: []
+
+evolution:
+  max_failure_rate_regression: 0.0
+  max_tool_error_rate_regression: 0.0
+  max_token_ratio: 1.20
+  max_model_p95_latency_ratio: 1.50
+  require_strict_improvement: true
+  min_paired_outcome_cases: 2
+  max_outcome_failure_rate_regression: 0.0
+  max_outcome_score_regression: 0.0

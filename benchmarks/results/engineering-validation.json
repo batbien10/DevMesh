@@ -1,0 +1,84 @@
+{
+  "benchmark_version" : 1,
+  "context_compaction_benchmark" : {
+    "average_reduction_percent" : 55.61,
+    "baseline" : "same 50 generated turns with ContextCompactor.manage disabled",
+    "baseline_average_estimated_tokens" : 24966.88,
+    "baseline_final_estimated_tokens" : 47367,
+    "baseline_peak_estimated_tokens" : 47367,
+    "baseline_series" : [ 3578, 4128, 4678, 5228, 7461, 8011, 8561, 9111, 9661, 11895, 12445, 12995, 13545, 14095, 16329, 16879, 17429, 17979, 18529, 20763, 21313, 21863, 22413, 22963, 25197, 25747, 26297, 26847, 27397, 29631, 30181, 30731, 31281, 31831, 34065, 34615, 35165, 35715, 36265, 38499, 39049, 39599, 40149, 40699, 42933, 43483, 44033, 44583, 45133, 47367 ],
+    "compacted_average_estimated_tokens" : 11082.82,
+    "compacted_final_estimated_tokens" : 5664,
+    "compacted_peak_estimated_tokens" : 18529,
+    "compacted_series" : [ 3578, 4128, 4678, 5228, 7461, 8011, 8561, 9111, 9661, 11895, 12445, 12995, 13545, 14095, 16329, 16879, 17429, 17979, 18529, 5664, 6214, 6764, 7314, 7864, 10098, 10648, 11198, 11748, 12298, 14532, 15082, 15632, 16182, 16732, 5664, 6214, 6764, 7314, 7864, 10098, 10648, 11198, 11748, 12298, 14532, 15082, 15632, 16182, 16732, 5664 ],
+    "compaction_count" : 3,
+    "context_window_tokens" : 32768,
+    "generated_input_sha256" : "eb2d78aa254a4d9ed0697496bcf147a73fd68386b2ae82469e19f51661c50289",
+    "generated_messages" : 120,
+    "generated_tool_pairs" : 10,
+    "max_output_tokens" : 4096,
+    "message_token_estimator" : "ContextCompactor.estimateTokens (characters/3.5 plus message and tool overhead)",
+    "metric" : "post-management estimated request tokens = message estimate + fixed resident schema estimate",
+    "peak_reduction_percent" : 60.88,
+    "resident_schema_estimated_tokens" : 3028,
+    "rounds" : 50,
+    "tool_pair_integrity_checks" : 50,
+    "tool_pair_integrity_failures" : 0,
+    "treatment" : "same 50 generated turns with ContextCompactor.manage enabled and deterministic summary client"
+  },
+  "fixture" : "context-50-turns.yaml",
+  "fixture_sha256" : "6f3f81a9ec00477e367f2afc3b210cdced281dd7bf12625599207186255e8047",
+  "tool_schema_benchmark" : [ {
+    "after_discovering_six" : {
+      "canonical_json_characters" : 16755,
+      "estimated_token_reduction_vs_eager_percent" : 2.31,
+      "estimated_tokens" : 4189,
+      "schema_count" : 19
+    },
+    "deferred_tool_names" : [ "AskUserQuestion", "EnterWorktree", "ExitWorktree", "ProposeSkillCandidate", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate" ],
+    "deferred_tools" : 8,
+    "discovered_tools" : [ "AskUserQuestion", "EnterWorktree", "ExitWorktree", "ProposeSkillCandidate", "TaskCreate", "TaskUpdate" ],
+    "discovery_query" : "select:AskUserQuestion,EnterWorktree,ExitWorktree,ProposeSkillCandidate,TaskCreate,TaskUpdate",
+    "eager_baseline" : {
+      "canonical_json_characters" : 17152,
+      "estimated_tokens" : 4288,
+      "schema_count" : 21
+    },
+    "protocol" : "anthropic",
+    "registered_tools" : 21,
+    "resident" : {
+      "canonical_json_characters" : 11902,
+      "estimated_token_reduction_vs_eager_percent" : 30.6,
+      "estimated_tokens" : 2976,
+      "schema_count" : 13
+    },
+    "resident_tools" : 13,
+    "token_estimator" : "ceil(canonical_compact_json_characters / 4)"
+  }, {
+    "after_discovering_six" : {
+      "canonical_json_characters" : 17059,
+      "estimated_token_reduction_vs_eager_percent" : 2.45,
+      "estimated_tokens" : 4265,
+      "schema_count" : 19
+    },
+    "deferred_tool_names" : [ "AskUserQuestion", "EnterWorktree", "ExitWorktree", "ProposeSkillCandidate", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate" ],
+    "deferred_tools" : 8,
+    "discovered_tools" : [ "AskUserQuestion", "EnterWorktree", "ExitWorktree", "ProposeSkillCandidate", "TaskCreate", "TaskUpdate" ],
+    "discovery_query" : "select:AskUserQuestion,EnterWorktree,ExitWorktree,ProposeSkillCandidate,TaskCreate,TaskUpdate",
+    "eager_baseline" : {
+      "canonical_json_characters" : 17488,
+      "estimated_tokens" : 4372,
+      "schema_count" : 21
+    },
+    "protocol" : "openai-compat",
+    "registered_tools" : 21,
+    "resident" : {
+      "canonical_json_characters" : 12110,
+      "estimated_token_reduction_vs_eager_percent" : 30.74,
+      "estimated_tokens" : 3028,
+      "schema_count" : 13
+    },
+    "resident_tools" : 13,
+    "token_estimator" : "ceil(canonical_compact_json_characters / 4)"
+  } ]
+}

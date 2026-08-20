@@ -1,0 +1,13 @@
+# Deterministic gates over one trace file or a directory of traces.
+min_agent_runs: 1
+max_failed_runs: 0
+max_tool_errors: 0
+max_retries: 3
+max_compactions: 3
+max_malformed_records: 0
+min_tool_success_rate: 0.95
+max_peak_context_pressure: 0.95
+
+# Customize these for a scenario-specific trajectory test.
+required_tools: []
+forbidden_tools: []
