@@ -55,7 +55,7 @@ public class Agent {
     private String instructions = "";
     private String memoryContent = "";
 
-    // 非阻塞 memory recall：prefetch 与主 LLM 调用并行，工具执行后注入
+
     private CompletableFuture<String> memoryRecallFuture;
     private boolean memoryRecallConsumed;
     private final devmesh.compact.ContextCompactor.AutoCompactTrackingState compactTracking =
@@ -132,7 +132,7 @@ public class Agent {
         return queue;
     }
 
-    // 使用调用方提供的 queue，允许 TUI 预先创建 queue 立即开始轮询
+
     public void run(ConversationManager conv, BlockingQueue<AgentEvent> queue) {
         Thread.startVirtualThread(() -> {
             try {
@@ -222,7 +222,7 @@ public class Agent {
                 conv.removeEphemeralContext("plan-mode");
             }
 
-            // Layer 1: apply tool-result budget（就地修改 conv，Design A）
+
             Path sessionDir = Paths.get(workDir == null ? "." : workDir, ".devmesh/session");
             List<ContentReplacementRecord> newRecords = ToolResultBudget.apply(conv, sessionDir, replacementState);
             if (!newRecords.isEmpty()) {
@@ -232,7 +232,7 @@ public class Agent {
             }
 
             // Layer 2: auto-compact check
-            // 用 Layer 1 就地裁剪后的 conv 消息估算 token，判断更精确
+
             try {
                 long compactStarted = tracer.startTimer();
                 String wd = workDir != null ? workDir : System.getProperty("user.dir");
@@ -249,12 +249,12 @@ public class Agent {
                                     "devmesh.context.message_count.before", sizeBefore,
                                     "devmesh.context.message_count.after", conv.size()));
                 }
-                // 压缩把旧消息替换成摘要，旧锚点失效，下次 stream 重新锚定
+
                 if (conv.size() < sizeBefore) {
                     usageAnchor = null;
                     conv.resetLtmInjected();
                     conv.injectLongTermMemory(instructions, memoryContent);
-                    // 压缩后 conv 已变，重新应用 tool-result budget
+
                     newRecords = ToolResultBudget.apply(conv, sessionDir, replacementState);
                 }
             } catch (Exception ignored) {}
@@ -366,7 +366,7 @@ public class Agent {
                                 "devmesh.retry.reason", "context_overflow",
                                 "devmesh.retry.attempt", contextRetries));
                         putSafe(queue, new AgentEvent.RetryEvent("Context too long, compacting...", 0));
-                        // 对齐 Claude Code：先应用 tool-result budget（就地修改），再做 forceCompact
+
                         Path forceSessionDir = Paths.get(workDir == null ? "." : workDir, ".devmesh/session");
                         List<ContentReplacementRecord> forceRecords = ToolResultBudget.apply(conv, forceSessionDir, replacementState);
                         if (!forceRecords.isEmpty()) {
@@ -458,13 +458,13 @@ public class Agent {
                         baseline, conv.size());
             }
 
-            // No tool calls → done
+
             if (toolCalls.isEmpty()) {
                 if (fileHistory != null) {
                     String summary = text.length() > 60 ? text.substring(0, 60) + "..." : text.toString();
                     fileHistory.makeSnapshot(conv.size(), summary);
                 }
-                // No TurnComplete on the terminal (no-tool) turn — aligning Go
+
                 // (agent.go emits only LoopComplete here). The TUI's TurnComplete
                 // handler flushes+clears streamBuf without persisting; if we emitted
                 // it first, LoopComplete would see an empty buffer and the final
@@ -488,8 +488,8 @@ public class Agent {
                     .toList();
             conv.addToolResultsMessage(resultBlocks);
 
-            // 非阻塞 memory recall：工具执行完后检查 prefetch 是否就绪
-            // 与 Claude Code 一致——记忆在第 1 轮工具执行后、第 2 轮迭代前注入
+
+
             if (memoryRecallFuture != null && !memoryRecallConsumed) {
                 if (memoryRecallFuture.isDone()) {
                     try {

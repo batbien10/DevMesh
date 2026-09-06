@@ -63,7 +63,7 @@ public class HistoryStore {
                 }
             }
         } catch (IOException ignored) {
-            // file unreadable — start with empty history
+
         }
     }
 

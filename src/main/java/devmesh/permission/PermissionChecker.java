@@ -29,10 +29,8 @@ public class PermissionChecker {
     private final ArrayList<PermissionRule> fileRules;
     private String planFilePath;
 
-    /** 沙箱保护路径列表：这些路径始终禁止写入，即使用户有写权限 */
     private final List<String> denyWrite;
 
-    /** 沙箱模式开关：开启后命令类工具自动放行（由 OS 级沙箱保护） */
     private boolean sandboxEnabled;
 
     /** A single parsed rule from a permissions.yaml file. */
@@ -41,7 +39,7 @@ public class PermissionChecker {
             if (!this.toolName.equals(toolName)) {
                 return false;
             }
-            // 简单通配符匹配：* 匹配任意字符（包括 /），适用于 Bash 命令
+
             return globMatch(pattern, content);
         }
 
@@ -111,7 +109,6 @@ public class PermissionChecker {
             "Grep", "pattern"
     );
 
-    /** 默认受保护的路径：配置文件和权限文件不允许被 AI 写入 */
     private static final List<String> DEFAULT_DENY_WRITE = List.of(
             ".devmesh/config.yaml",
             ".devmesh/permissions.local.yaml",
@@ -123,7 +120,7 @@ public class PermissionChecker {
         this.projectRoot = projectRoot;
         this.fileRules = new ArrayList<>(loadRules());
 
-        // 初始化 denyWrite 列表，将相对路径解析为绝对路径
+
         var resolvedDeny = new ArrayList<String>();
         if (projectRoot != null) {
             for (String rel : DEFAULT_DENY_WRITE) {
@@ -181,7 +178,7 @@ public class PermissionChecker {
             }
         }
 
-        // Layer 2b: denyWrite 保护路径检查（沙箱保护的敏感路径始终禁止写入）
+
         if (content != null && isWritePathTool(toolName) && isDeniedPath(content)) {
             return CheckResult.deny("Path is protected by sandbox: " + content);
         }
@@ -212,8 +209,8 @@ public class PermissionChecker {
             return CheckResult.allow();
         }
 
-        // Layer 4c: 沙箱模式下命令类工具自动放行（由 OS 级沙箱保护，无需逐条询问）。
-        // 对齐 Claude Code checkSandboxAutoAllow：拆分复合命令逐条检查 deny/ask 规则。
+
+
         if (sandboxEnabled && tool.category() == ToolCategory.COMMAND) {
             String[] subcommands = content.split("\\s*(?:&&|\\|\\||[;|])\\s*");
             boolean hasAsk = false;
@@ -389,14 +386,11 @@ public class PermissionChecker {
         return "ReadFile".equals(toolName) || "WriteFile".equals(toolName) || "EditFile".equals(toolName);
     }
 
-    /** 写入类工具（WriteFile、EditFile），用于 denyWrite 检查 */
     private boolean isWritePathTool(String toolName) {
         return "WriteFile".equals(toolName) || "EditFile".equals(toolName);
     }
 
     /**
-     * 检查路径是否在 denyWrite 保护列表中。
-     * 如果目标路径以任何 denyWrite 条目为前缀，则禁止写入。
      */
     private boolean isDeniedPath(String pathStr) {
         try {

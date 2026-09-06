@@ -20,19 +20,19 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * Hook 引擎 —— 管理生命周期钩子的注册、条件匹配和动作执行。
- * 对齐 Go 版本的完整功能集：
- *   - 9 种事件、4 种动作类型（command / prompt / http / agent）
- *   - != / =~ / =* 操作符，&& / || 复合条件
- *   - once（单次触发）、async（异步执行）、onError 错误策略
- *   - 配置校验、命令超时、环境变量注入、模板变量替换
+ * Hook engine for lifecycle registration, condition matching, and action execution.
+ * Mirrors the Go implementation's feature set:
+ *   - 9 events and 4 action types (command / prompt / http / agent)
+ *   - != / =~ / =* operators and && / || compound conditions
+ *   - once, async, and onError policies
+ *   - configuration validation, command timeouts, environment injection, and template substitution
  */
 public class HookEngine {
 
-    /** 命令执行的默认超时（10 分钟），与 Go 版一致 */
+    /** Default command timeout (10 minutes), matching the Go implementation. */
     private static final Duration DEFAULT_COMMAND_TIMEOUT = Duration.ofMinutes(10);
 
-    /** HTTP 请求的默认超时（10 秒） */
+    /** Default HTTP request timeout (10 seconds). */
     private static final Duration DEFAULT_HTTP_TIMEOUT = Duration.ofSeconds(10);
 
     private static final String BASH_EXECUTABLE = discoverBashExecutable();
@@ -56,7 +56,7 @@ public class HookEngine {
 
         public String value() { return value; }
 
-        /** 根据字符串查找对应的枚举值，找不到返回 null */
+        /** Find the enum value for a string, or return null when unknown. */
         public static EventName fromString(String s) {
             if (s == null) return null;
             for (EventName e : values()) {
@@ -80,7 +80,7 @@ public class HookEngine {
 
         public String value() { return value; }
 
-        /** 根据字符串查找对应的枚举值，找不到返回 null */
+        /** Find the enum value for a string, or return null when unknown. */
         public static ActionType fromString(String s) {
             if (s == null) return null;
             for (ActionType t : values()) {
@@ -93,12 +93,11 @@ public class HookEngine {
     // ======== Data records ========
 
     /**
-     * 动作定义 —— 与 Go 版 Action 结构体对齐。
-     * 根据 type 不同使用不同字段：
-     *   command → command 字段
-     *   prompt  → message 字段
-     *   http    → url / method / headers / body
-     *   agent   → message（或 command 作为 fallback）
+     * Action definition aligned with the Go Action structure.
+     * Different types use different fields:
+     *   command -> command field
+     *   prompt  -> message field
+     *   agent   -> message, or command as a fallback
      */
     public record Action(
             ActionType type,
@@ -110,14 +109,14 @@ public class HookEngine {
             String body,
             Duration timeout
     ) {
-        /** 简便构造：仅 command/prompt 类型用 */
+        /** Convenience constructor for command/prompt actions. */
         public Action(ActionType type, String command, String message) {
             this(type, command, message, null, null, null, null, Duration.ZERO);
         }
     }
 
     /**
-     * 单条 hook 配置 —— 完整对齐 Go 版 Hook 结构体。
+     * A single hook configuration aligned with the Go Hook structure.
      */
     public record Hook(
             String id,
@@ -129,14 +128,14 @@ public class HookEngine {
             boolean async,
             String onError
     ) {
-        /** 向后兼容的简便构造 */
+        /** Backward-compatible convenience constructor. */
         public Hook(String id, EventName event, String condition, Action action, boolean reject) {
             this(id, event, condition, action, reject, false, false, null);
         }
     }
 
     /**
-     * Hook 执行上下文 —— 携带当前事件的所有信息。
+     * Hook execution context carrying all information for the current event.
      */
     public record HookContext(
             EventName event,
@@ -147,8 +146,8 @@ public class HookEngine {
             String error
     ) {
         /**
-         * 模板变量替换 —— 将字符串中的 ${var} 替换为上下文中的实际值。
-         * 支持的变量：event、tool、file_path、message、error、args.xxx
+         * Replace ${var} template variables with values from the context.
+         * Supported variables: event, tool, file_path, message, error, args.xxx
          */
         public String expand(String template) {
             if (template == null || !template.contains("${")) return template;
@@ -158,7 +157,8 @@ public class HookEngine {
             result = result.replace("${file_path}", filePath != null ? filePath : "");
             result = result.replace("${message}", message != null ? message : "");
             result = result.replace("${error}", error != null ? error : "");
-            // 替换 args.xxx 变量
+
+            // Replace args.xxx variables.
             if (toolArgs != null) {
                 for (var entry : toolArgs.entrySet()) {
                     String placeholder = "${args." + entry.getKey() + "}";
@@ -180,12 +180,12 @@ public class HookEngine {
 
     private final List<Hook> hooks = new ArrayList<>();
     private final List<HookResult> notifications = Collections.synchronizedList(new ArrayList<>());
-    /** 已触发的 hook ID 集合，用于 once 去重 */
+    /** Hook IDs already triggered, used for once de-duplication. */
     private final Set<String> fired = Collections.synchronizedSet(new HashSet<>());
 
     /**
-     * Agent 类型 hook 的执行器（可选）。
-     * 接收 prompt 和上下文，返回输出字符串。未注册时 agent hook 会返回明确错误。
+     * Optional executor for agent-type hooks.
+     * Receives a prompt and context and returns output. An unregistered runner returns an explicit error.
      */
     private BiFunction<String, HookContext, String> agentRunner;
 
@@ -214,14 +214,15 @@ public class HookEngine {
     // ======== Config validation ========
 
     /**
-     * 校验 hook 配置列表，提前暴露配置错误。
-     * 所有错误聚合返回，不会因第一个错误就中断检查。
-     * 与 Go 版 Validate() 对齐。
+     * Validate hook configurations and report errors before execution.
+     * Aggregate all errors instead of stopping at the first one.
+     * Aligned with the Go Validate() implementation.
      *
-     * @return 校验错误列表，为空表示配置合法
+     * @return validation errors; empty means the configuration is valid
      */
     public static List<String> validate(List<Hook> hooks) {
-        // 合法事件名集合
+
+        // Valid event names.
         Set<EventName> validEvents = EnumSet.allOf(EventName.class);
         List<String> errors = new ArrayList<>();
 
@@ -231,20 +232,23 @@ public class HookEngine {
                     ? String.format("hook[%d] (id=%s)", i, h.id())
                     : String.format("hook[%d]", i);
 
-            // 校验事件名
+
+            // Validate the event name.
             if (h.event() == null || !validEvents.contains(h.event())) {
                 errors.add(String.format("%s: unknown event \"%s\"", label,
                         h.event() != null ? h.event().value() : "null"));
             }
 
-            // 校验超时
+
+            // Validate the timeout.
             if (h.action() != null && h.action().timeout() != null
                     && h.action().timeout().isNegative()) {
                 errors.add(String.format("%s: action.timeout must be >= 0 (got %s)",
                         label, h.action().timeout()));
             }
 
-            // 校验 action type 及其必填字段
+
+            // Validate the action type and required fields.
             if (h.action() == null || h.action().type() == null) {
                 errors.add(String.format("%s: action.type is required", label));
                 continue;
@@ -271,7 +275,8 @@ public class HookEngine {
                                 "%s: action.url must be non-empty for type \"%s\"",
                                 label, h.action().type().value()));
                     } else {
-                        // 校验 URL 格式
+
+                        // Validate the URL format.
                         try {
                             URI uri = URI.create(h.action().url());
                             String scheme = uri.getScheme();
@@ -303,8 +308,8 @@ public class HookEngine {
     // ======== Hook execution ========
 
     /**
-     * 按事件名匹配并执行所有 hook。
-     * async hook 在独立线程中执行，不阻塞调用方。
+     * Match an event name and execute all applicable hooks.
+     * Async hooks run on an independent thread without blocking the caller.
      */
     public List<HookResult> runHooks(HookContext ctx) {
         List<HookResult> results = new ArrayList<>();
@@ -312,7 +317,8 @@ public class HookEngine {
             if (h.event() != ctx.event()) continue;
             if (!shouldFire(h, ctx)) continue;
 
-            // 异步 hook：在独立线程中执行，立即返回占位结果
+
+            // Async hook: run independently and return a placeholder immediately.
             if (h.async()) {
                 CompletableFuture.runAsync(() -> {
                     HookResult res = executeAction(h, ctx);
@@ -330,9 +336,9 @@ public class HookEngine {
     }
 
     /**
-     * 执行 pre_tool_use 事件的 hook。
-     * 支持 reject 配置和 onError=reject 策略。
-     * 非 reject 的 hook 也会执行（用于副作用如通知/HTTP）。
+     * Execute hooks for the pre_tool_use event.
+     * Supports the reject setting and onError=reject policy.
+     * Non-rejecting hooks still run for side effects such as notifications or HTTP calls.
      */
     public PreToolResult runPreToolHooks(String toolName, Map<String, Object> args) {
         HookContext ctx = new HookContext(
@@ -344,7 +350,8 @@ public class HookEngine {
             HookResult result = executeAction(h, ctx);
             notifications.add(result);
 
-            // 配置了 reject 或者 action 失败 + onError=reject 都触发拦截
+
+            // A configured reject or action failure with onError=reject blocks the call.
             if (h.reject() || (!result.success() && "reject".equals(h.onError()))) {
                 String msg = result.output();
                 if (msg == null || msg.isEmpty()) {
@@ -358,7 +365,7 @@ public class HookEngine {
 
     // ======== Notifications ========
 
-    /** 取出并清空累积的通知（线程安全） */
+    /** Drain accumulated notifications in a thread-safe way. */
     public List<HookResult> drainNotifications() {
         synchronized (notifications) {
             List<HookResult> result = List.copyOf(notifications);
@@ -367,16 +374,19 @@ public class HookEngine {
         }
     }
 
-    // ======== 内部方法 ========
 
-    /** 判断 hook 是否应该触发（条件匹配 + once 去重） */
+    // ======== Internal methods ========
+
+    /** Determine whether a hook should trigger (condition match plus once de-duplication). */
     private boolean shouldFire(Hook h, HookContext ctx) {
-        // 条件不满足则跳过
+
+        // Skip when the condition does not match.
         if (h.condition() != null && !h.condition().isEmpty()
                 && !evaluateCondition(h.condition(), ctx)) {
             return false;
         }
-        // once: 同一 id 只触发一次
+
+        // once: trigger each ID only once.
         if (h.once()) {
             if (h.id() != null && !h.id().isEmpty()) {
                 if (fired.contains(h.id())) return false;
@@ -386,7 +396,7 @@ public class HookEngine {
         return true;
     }
 
-    /** 快照当前 hook 列表，避免执行过程中修改导致并发问题 */
+    /** Snapshot the hook list to avoid concurrent modification during execution. */
     private List<Hook> snapshotHooks() {
         synchronized (hooks) {
             return new ArrayList<>(hooks);
@@ -396,16 +406,16 @@ public class HookEngine {
     // ======== Condition evaluation ========
 
     /**
-     * 条件求值器 —— 支持：
-     *   - 叶子条件：var == "value"、var != "value"、var =~ /regex/、var =* "glob"
-     *   - 复合条件：cond1 && cond2、cond1 || cond2（左到右求值，无括号）
-     *   - 取反：!cond
+    * Condition evaluator supporting:
+    *   - Leaf conditions: var == "value", var != "value", var =~ /regex/, var =* "glob"
+    *   - Compound conditions: cond1 && cond2, cond1 || cond2 (left-to-right, no parentheses)
+    *   - Negation: !cond
      */
     static boolean evaluateCondition(String condition, HookContext ctx) {
         String cond = condition.strip();
         if (cond.isEmpty()) return true;
 
-        // 尝试拆分复合条件（&& 和 ||）
+        // Try to split compound conditions (&& and ||).
         List<CompToken> tokens = splitComposite(cond);
         if (tokens != null && tokens.size() > 1) {
             boolean result = evaluateCondition(tokens.get(0).expr, ctx);
@@ -420,7 +430,7 @@ public class HookEngine {
             return result;
         }
 
-        // 取反操作符
+        // Negation operator.
         if (cond.startsWith("!")) {
             return !evaluateCondition(cond.substring(1).strip(), ctx);
         }
@@ -428,13 +438,13 @@ public class HookEngine {
         return evaluateLeaf(cond, ctx);
     }
 
-    /** 复合条件拆分的令牌 */
+    /** Token for splitting compound conditions. */
     private record CompToken(String op, String expr) {}
 
     /**
-     * 将条件字符串按顶层 && 和 || 拆分为令牌列表。
-     * 不处理引号内的操作符（hook 条件是用户配置，保持简单）。
-     * 返回 null 表示没有拆分（纯叶子条件）。
+    * Split a condition string into tokens at top-level && and || operators.
+    * Operators inside quotes are not handled; hook conditions remain intentionally simple.
+    * Return null when no split is needed (a pure leaf condition).
      */
     private static List<CompToken> splitComposite(String s) {
         List<CompToken> out = new ArrayList<>();
@@ -446,23 +456,23 @@ public class HookEngine {
                 out.add(new CompToken(currentOp, s.substring(start, i).strip()));
                 currentOp = pair;
                 start = i + 2;
-                i++; // 跳过第二个字符
+                i++; // Skip the second character.
             }
         }
         out.add(new CompToken(currentOp, s.substring(start).strip()));
-        // 只有一个元素说明没有拆分
+        // One element means no split occurred.
         return out.size() <= 1 ? null : out;
     }
 
     /**
-     * 叶子条件求值 —— 支持四种操作符：
-     *   ==  精确相等
-     *   !=  不等
-     *   =~  正则匹配
-     *   =*  glob 模式匹配
+    * Evaluate a leaf condition with four operators:
+    *   ==  exact equality
+    *   !=  inequality
+    *   =~  regular-expression match
+    *   =*  glob-pattern match
      */
     static boolean evaluateLeaf(String condition, HookContext ctx) {
-        // 按优先级检查各操作符（!= 必须在 == 之前检查）
+        // Check operators by precedence; != must be checked before ==.
         for (String op : new String[]{"!=", "=~", "=*", "=="}) {
             int idx = condition.indexOf(op);
             if (idx >= 0) {
@@ -474,8 +484,8 @@ public class HookEngine {
                     case "==" -> val.equals(right);
                     case "!=" -> !val.equals(right);
                     case "=~" -> {
-                        // 正则匹配：去除 / 分隔符。
-                        // 使用 find() 而非 matches()，与 Go 的 regexp.MatchString 语义一致（部分匹配）
+                        // Regex match: remove slash delimiters.
+                        // Use find() rather than matches() to match Go regexp.MatchString partial-match semantics.
                         String pattern = stripSlashes(right);
                         try {
                             yield Pattern.compile(pattern).matcher(val).find();
@@ -484,7 +494,7 @@ public class HookEngine {
                         }
                     }
                     case "=*" -> {
-                        // glob 匹配：使用 Java NIO PathMatcher
+                        // Glob match using Java NIO PathMatcher.
                         try {
                             PathMatcher matcher = FileSystems.getDefault()
                                     .getPathMatcher("glob:" + right);
@@ -497,11 +507,11 @@ public class HookEngine {
                 };
             }
         }
-        // 没有操作符 → 变量非空即为 true
+        // No operator means true when the variable is non-empty.
         return !resolveVar(condition.strip(), ctx).isEmpty();
     }
 
-    /** 解析变量引用，从 HookContext 中取值 */
+    /** Resolve a variable reference from HookContext. */
     static String resolveVar(String name, HookContext ctx) {
         return switch (name) {
             case "tool" -> ctx.toolName() != null ? ctx.toolName() : "";
@@ -509,7 +519,7 @@ public class HookEngine {
             case "file_path" -> ctx.filePath() != null ? ctx.filePath() : "";
             case "message" -> ctx.message() != null ? ctx.message() : "";
             default -> {
-                // 支持 args.xxx 变量访问
+                // Support args.xxx variable access.
                 if (name.startsWith("args.") && ctx.toolArgs() != null) {
                     String key = name.substring("args.".length());
                     Object v = ctx.toolArgs().get(key);
@@ -520,7 +530,7 @@ public class HookEngine {
         };
     }
 
-    /** 去除字符串两端的引号（单引号、双引号、正则斜杠） */
+    /** Remove quotes from both ends of a string (single, double, or regex slashes). */
     private static String stripQuotes(String s) {
         if (s.length() >= 2) {
             char first = s.charAt(0);
@@ -534,7 +544,7 @@ public class HookEngine {
         return s;
     }
 
-    /** 去除正则模式两端的斜杠 */
+    /** Remove slash delimiters from a regex pattern. */
     private static String stripSlashes(String s) {
         if (s.length() >= 2 && s.charAt(0) == '/' && s.charAt(s.length() - 1) == '/') {
             return s.substring(1, s.length() - 1);
@@ -544,7 +554,7 @@ public class HookEngine {
 
     // ======== Action execution ========
 
-    /** 根据 action type 分发执行 */
+    /** Dispatch execution by action type. */
     private HookResult executeAction(Hook h, HookContext ctx) {
         return switch (h.action().type()) {
             case COMMAND -> executeCommand(h, ctx);
@@ -555,29 +565,29 @@ public class HookEngine {
     }
 
     /**
-     * 执行 command 类型 action —— 通过 bash -c 运行命令。
-     * 注入 DEVMESH_EVENT、DEVMESH_TOOL、DEVMESH_FILE_PATH 环境变量。
-     * 支持超时保护，超时后强制终止子进程。
+    * Execute a command action through bash -c.
+    * Inject DEVMESH_EVENT, DEVMESH_TOOL, and DEVMESH_FILE_PATH environment variables.
+    * Enforce a timeout and terminate the child process when it expires.
      */
     private HookResult executeCommand(Hook h, HookContext ctx) {
         Duration timeout = h.action().timeout() != null && !h.action().timeout().isZero()
                 ? h.action().timeout()
                 : DEFAULT_COMMAND_TIMEOUT;
 
-        // 对命令字符串做模板变量替换
+        // Substitute template variables in the command.
         String command = ctx.expand(h.action().command());
 
         try {
             ProcessBuilder pb = new ProcessBuilder(BASH_EXECUTABLE, "-c", command);
             Map<String, String> env = pb.environment();
-            // 注入环境变量（对齐 Go 版的 3 个环境变量）
+            // Inject the three environment variables used by the Go implementation.
             env.put("DEVMESH_EVENT", ctx.event() != null ? ctx.event().value() : "");
             env.put("DEVMESH_TOOL", ctx.toolName() != null ? ctx.toolName() : "");
             env.put("DEVMESH_FILE_PATH", ctx.filePath() != null ? ctx.filePath() : "");
 
             Process proc = pb.start();
 
-            // 异步读取 stdout 和 stderr，防止管道阻塞
+            // Read stdout and stderr asynchronously to avoid pipe blocking.
             InputStream stdoutStream = proc.getInputStream();
             InputStream stderrStream = proc.getErrorStream();
 
@@ -643,9 +653,9 @@ public class HookEngine {
     }
 
     /**
-     * 执行 http 类型 action —— 发送 HTTP 请求。
-     * 默认方法 POST，默认 Content-Type application/json。
-     * 无 body 时自动构建包含上下文信息的 JSON payload。
+    * Execute an HTTP action by sending an HTTP request.
+    * The default method is POST and the default Content-Type is application/json.
+    * When no body is configured, build a JSON payload containing context information.
      */
     private HookResult executeHTTP(Hook h, HookContext ctx) {
         String method = h.action().method() != null && !h.action().method().isEmpty()
@@ -653,15 +663,15 @@ public class HookEngine {
         Duration timeout = h.action().timeout() != null && !h.action().timeout().isZero()
                 ? h.action().timeout() : DEFAULT_HTTP_TIMEOUT;
 
-        // 对 URL 做模板变量替换
+        // Substitute template variables in the URL.
         String url = ctx.expand(h.action().url());
 
-        // 构建请求体
+        // Build the request body.
         String body = h.action().body();
         if (body != null && !body.isEmpty()) {
             body = ctx.expand(body);
         } else {
-            // 自动生成包含上下文信息的 JSON
+            // Generate JSON containing context information.
             body = String.format(
                     "{\"event\":\"%s\",\"tool\":\"%s\",\"file_path\":\"%s\",\"message\":\"%s\",\"error\":\"%s\"}",
                     ctx.event() != null ? ctx.event().value() : "",
@@ -677,7 +687,7 @@ public class HookEngine {
                     .timeout(timeout)
                     .method(method, HttpRequest.BodyPublishers.ofString(body));
 
-            // 设置请求头
+            // Set request headers.
             boolean hasContentType = false;
             if (h.action().headers() != null) {
                 for (var entry : h.action().headers().entrySet()) {
@@ -697,7 +707,7 @@ public class HookEngine {
 
             boolean ok = resp.statusCode() >= 200 && resp.statusCode() < 300;
             String respBody = resp.body();
-            // 限制响应体大小（64KB）
+            // Limit the response body to 64 KB.
             if (respBody != null && respBody.length() > 65536) {
                 respBody = respBody.substring(0, 65536);
             }
@@ -710,8 +720,8 @@ public class HookEngine {
     }
 
     /**
-     * 执行 agent 类型 action —— 启动子 Agent 处理 hook 任务。
-     * 需要先通过 setAgentRunner 注册执行器，否则返回明确的错误提示。
+    * Execute an agent action by starting a SubAgent for the hook task.
+    * Register a runner through setAgentRunner first; otherwise return an explicit error.
      */
     private HookResult executeAgent(Hook h, HookContext ctx) {
         if (agentRunner == null) {
@@ -719,12 +729,12 @@ public class HookEngine {
                     "agent-type hook configured but no AgentRunner registered",
                     false, h.reject());
         }
-        // message 优先，command 作为 fallback
+        // Prefer message, with command as the fallback.
         String prompt = h.action().message();
         if (prompt == null || prompt.isEmpty()) {
             prompt = h.action().command();
         }
-        // 模板变量替换
+        // Substitute template variables.
         prompt = ctx.expand(prompt);
 
         try {
@@ -741,7 +751,7 @@ public class HookEngine {
         return s == null || s.strip().isEmpty();
     }
 
-    /** 简单的 JSON 字符串转义 */
+    /** Escape a JSON string. */
     private static String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\")

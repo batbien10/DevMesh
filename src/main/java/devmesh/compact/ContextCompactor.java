@@ -34,17 +34,17 @@ public final class ContextCompactor {
 
     // AUTOCOMPACT_THRESHOLD is the legacy ratio gate (kept for reference only).
     // The live decision now uses the absolute-token formula below, aligned with
-    // Claude Code's autoCompact.ts: trigger on used-tokens >= effectiveWindow − margin.
+
     private static final double AUTOCOMPACT_THRESHOLD = 0.80;
 
     // SUMMARY_OUTPUT_RESERVE reserves room for the summary response itself, so the
-    // effective window is contextWindow − min(model maxOutput, SUMMARY_OUTPUT_RESERVE).
+
     private static final int SUMMARY_OUTPUT_RESERVE = 20_000;
     // AUTO_COMPACT_SAFETY_MARGIN sets the soft auto-compact trigger line below the
     // effective window.
     private static final int AUTO_COMPACT_SAFETY_MARGIN = 13_000;
     // MANUAL_COMPACT_SAFETY_MARGIN sets the hard-block line: once used tokens cross
-    // effectiveWindow − MANUAL_COMPACT_SAFETY_MARGIN, we force a compaction rather
+
     // than rely on the soft trigger.
     private static final int MANUAL_COMPACT_SAFETY_MARGIN = 3_000;
 
@@ -52,11 +52,11 @@ public final class ContextCompactor {
     private static final int MESSAGE_AGGREGATE_LIMIT = 200_000;
     private static final int MAX_CONSECUTIVE_FAILURES = 3;
 
-    // PTL 重试：摘要请求本身超出上下文窗口时，按 API 轮次丢弃最老的消息组重试
+
     private static final int MAX_PTL_RETRIES = 3;
     private static final String PTL_RETRY_MARKER = "[earlier conversation truncated for compaction retry]";
 
-    // ── messagesToKeep window (aligned with Claude Code compact.ts) ────────
+
     // A Layer 2 compaction no longer collapses the whole conversation into a
     // lone summary; it keeps the recent verbatim tail and only summarizes the
     // older prefix. KEEP_RECENT_TOKENS is the floor we try to keep, capped by
@@ -145,7 +145,7 @@ public final class ContextCompactor {
 
     private ContextCompactor() {}
 
-    // ── Circuit Breaker ────────────────────────────────────────────────
+
 
     public static class AutoCompactTrackingState {
         private int consecutiveFailures;
@@ -163,11 +163,10 @@ public final class ContextCompactor {
         }
     }
 
-    // ── Public API ──────────────────────────────────────────────────────
+
 
     /**
      * Returns the absolute used-token line at which Layer 2 should fire.
-     * effectiveWindow = contextWindow − min(maxOutput, SUMMARY_OUTPUT_RESERVE);
      * the threshold is effectiveWindow minus the safety margin (manual margin for
      * the hard-block line, auto margin for the soft trigger).
      */
@@ -183,8 +182,6 @@ public final class ContextCompactor {
 
     /**
      * Layer 1 runs unconditionally (offload + snip). Layer 2 fires when used
-     * tokens reach the auto-compact threshold (effectiveWindow − auto margin);
-     * once they cross the hard-block line (effectiveWindow − manual margin) it
      * forces a compaction. See {@link #computeCompactThreshold}.
      */
     public static String manage(ConversationManager conv, LlmClient client,
@@ -224,10 +221,6 @@ public final class ContextCompactor {
     }
 
     /**
-     * Layer 1 + Layer 2 management. {@code budgetMessages} 是经过 ToolResultBudget
-     * 裁剪后的消息列表，用于更精确的 token 估算（budget 裁剪后的体积更小，能更
-     * 准确判断是否需要触发 compact）。当 {@code budgetMessages} 为 null 时回退到
-     * {@code conv.getMessages()}。
      */
     public static String manage(ConversationManager conv, LlmClient client,
                                 int contextWindow, int maxOutput, String workDir, String sessionId,
@@ -236,18 +229,18 @@ public final class ContextCompactor {
                                 List<Map<String, Object>> toolSchemas,
                                 UsageAnchor anchor,
                                 List<Message> budgetMessages) {
-        // Layer 1（工具结果裁剪）已由 ToolResultBudget.apply() 在 Agent 主循环中单独处理，
-        // manage() 只负责 Layer 2（上下文压缩），避免与 ToolResultBudget 重复裁剪。
-        // 当 budgetMessages 非空时，使用 budget 裁剪后的消息进行 token 估算
+
+
+
         List<Message> messagesForEstimate = (budgetMessages != null && !budgetMessages.isEmpty())
                 ? budgetMessages : conv.getMessages();
         int tokens = currentTokens(messagesForEstimate, anchor);
-        // 软触发：已用 token >= effectiveWindow − 自动安全边距
+
         if (tokens < computeCompactThreshold(contextWindow, maxOutput, false)) {
             return "";
         }
 
-        // 硬触发：已用 token 逼近上下文窗口极限，强制压缩
+
         if (tokens >= computeCompactThreshold(contextWindow, maxOutput, true)) {
             return forceCompact(conv, client, contextWindow, workDir, sessionId, recovery, toolSchemas, budgetMessages);
         }
@@ -352,7 +345,7 @@ public final class ContextCompactor {
         return total;
     }
 
-    // ── Layer 1: Offload & Snip ────────────────────────────────────────
+
 
     static String offloadAndSnip(ConversationManager conv, String workDir) {
         List<Message> messages = conv.getMessagesMutable();
@@ -430,7 +423,7 @@ public final class ContextCompactor {
         return String.format("spilled %d tool result(s) to disk (~%d chars freed)", spillCount, savedChars);
     }
 
-    // ── Layer 2: Auto-compact ──────────────────────────────────────────
+
 
     /**
      * Pick the index where the verbatim "keep" tail begins, mirroring Claude
@@ -439,14 +432,12 @@ public final class ContextCompactor {
      * <p>Walk backwards from the end accumulating each message's estimated
      * tokens. We stop and keep everything from the current index once either
      * floor (KEEP_RECENT_TOKENS of tokens, or MIN_KEEP_MESSAGES of messages) is
-     * met — whichever comes first. The accumulator is also capped: if adding a
      * message would push the kept tail over KEEP_MAX_TOKENS we stop before it.
      *
      * <p>Pairing protection: a {@code user} message carrying tool_result blocks
      * must never be kept without its originating {@code assistant} tool_use
      * message. If the chosen boundary lands on such a message, we walk back one
      * more (to include the assistant turn that issued the tool_use), so we never
-     * keep an orphaned half of a tool_use↔tool_result pair.
      *
      * @return the start index of the keep window, or 0 when everything fits in
      *         the keep window (nothing left to summarize).
@@ -475,7 +466,7 @@ public final class ContextCompactor {
         }
 
         // Pairing protection: never start the keep window on a user message that
-        // only carries tool_result blocks — that would orphan it from its
+
         // assistant tool_use. Move the boundary back to include the assistant
         // turn (and skip any further dangling tool_result messages).
         while (keepStart > 0 && isToolResultMessage(messages.get(keepStart))) {
@@ -494,8 +485,8 @@ public final class ContextCompactor {
                                       String workDir, String sessionId,
                                       RecoveryState recovery, List<Map<String, Object>> toolSchemas,
                                       List<Message> budgetMessages) {
-        // 当 budgetMessages 非空时，使用 budget 裁剪后的消息进行 token 估算和摘要构建，
-        // 但最终仍然重写 conv（原始对话）
+
+
         List<Message> messages = (budgetMessages != null && !budgetMessages.isEmpty())
                 ? budgetMessages : conv.getMessages();
         int beforeTokens = estimateTokens(messages);
@@ -513,8 +504,8 @@ public final class ContextCompactor {
         List<Message> toSummarize = messages.subList(0, keepStartIndex);
         List<Message> toKeep = messages.subList(keepStartIndex, messages.size());
 
-        // 调用 LLM 生成摘要，带 PTL 重试：摘要请求本身超出上下文窗口时，
-        // 按 API 轮次从最老的开始丢弃，最多重试 MAX_PTL_RETRIES 次。
+
+
         String summaryText = requestSummaryWithPTLRetry(client, toSummarize, toolSchemas);
 
         // Persist a compact_boundary record so a later resume can rebuild this
@@ -522,7 +513,7 @@ public final class ContextCompactor {
         // pre-compaction transcript. Append-only: the original prefix messages
         // stay in the file but won't be replayed past this boundary. The kept tail
         // is inlined as role+content text (matching how the session log already
-        // stores messages — text only, no tool blocks). The boundary stores the
+
         // pure summary text, not the recovery attachment, since the recovery
         // snapshots are an in-memory rebuild aid unavailable on resume. Skipped
         // when sessionId/workDir is null/blank (tests, one-shot callers).
@@ -534,12 +525,12 @@ public final class ContextCompactor {
             SessionManager.saveCompactBoundary(workDir, sessionId, summaryText, keepRecords);
         }
 
-        String content = "本次会话延续自之前的对话，因上下文空间不足进行了压缩。以下是早期对话的摘要：\n\n" + summaryText;
+        String content = "This session continues an earlier conversation that was compacted because the context window was running out of space. Here is a summary of the earlier conversation:\n\n" + summaryText;
         if (!toKeep.isEmpty()) {
-            content += "\n\n近期消息已原样保留。";
+            content += "\n\nRecent messages have been preserved verbatim.";
         }
         if (workDir != null && !workDir.isBlank() && sessionId != null && !sessionId.isBlank()) {
-            content += "\n\n如果你需要压缩前的具体细节（代码片段、报错信息等），请用 ReadFile 读取完整会话记录："
+            content += "\n\nFor details from before compaction, such as code snippets or error messages, use ReadFile to inspect the full session record:"
                     + Path.of(workDir, ".devmesh", "sessions", sessionId + ".jsonl");
         }
         String attachment = buildRecoveryAttachment(recovery, toolSchemas);
@@ -560,7 +551,7 @@ public final class ContextCompactor {
         return String.format("Compacted: %d -> %d estimated tokens", beforeTokens, afterTokens);
     }
 
-    // ── Post-compact recovery attachment ───────────────────────────────
+
 
     /**
      * Render the four-section recovery block that gets appended to the
@@ -663,7 +654,7 @@ public final class ContextCompactor {
         return "";
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────
+
 
     private static boolean alreadyProcessed(String s) {
         return s != null && s.startsWith("[Result of ");
@@ -693,7 +684,6 @@ public final class ContextCompactor {
     }
 
     /**
-     * 按 API 轮次分组：每个助手新回复开始一个新组，tool_use/tool_result 对保持在同一组。
      */
     private static List<List<Message>> groupMessagesByAPIRound(List<Message> messages) {
         List<List<Message>> groups = new ArrayList<>();
@@ -715,7 +705,6 @@ public final class ContextCompactor {
     }
 
     /**
-     * 从最老的 API 轮次组开始丢弃，直到腾出足够 token。至少保留一组用于摘要。
      */
     private static List<Message> truncateHeadForPTL(List<Message> prefix, int tokenGap) {
         List<List<Message>> groups = groupMessagesByAPIRound(prefix);
@@ -748,8 +737,6 @@ public final class ContextCompactor {
     }
 
     /**
-     * 带 PTL 重试的摘要生成：捕获 ContextTooLongException，丢弃最老轮次后重试，
-     * 最多重试 MAX_PTL_RETRIES 次。
      */
     private static String requestSummaryWithPTLRetry(LlmClient client, List<Message> prefix,
                                                      List<Map<String, Object>> toolSchemas) {
@@ -760,7 +747,7 @@ public final class ContextCompactor {
                 String raw = requestSummary(client, SUMMARY_SYSTEM_PROMPT + "\n\n" + serialized, toolSchemas);
                 return formatCompactSummary(raw);
             } catch (RuntimeException e) {
-                // 检查是否为上下文超限错误
+
                 String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
                 boolean isPTL = msg.contains("prompt") && msg.contains("long")
                         || msg.contains("too many") || msg.contains("context_length");

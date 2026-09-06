@@ -12,7 +12,7 @@ import java.util.List;
  */
 public class PromptBuilder {
 
-    // ── Inner types ─────────────────────────────────────────────────────
+
 
     public record Section(String name, int priority, String content) {}
 
@@ -31,7 +31,7 @@ public class PromptBuilder {
             String customInstructions,
             String memorySection) {}
 
-    // ── Builder state ───────────────────────────────────────────────────
+
 
     private final List<Section> sections = new ArrayList<>();
 
@@ -53,7 +53,7 @@ public class PromptBuilder {
         return String.join("\n\n", parts);
     }
 
-    // ── Static convenience methods ──────────────────────────────────────
+
 
     /** Detect the current runtime environment. */
     public static EnvironmentContext detectEnvironment(String model) {
@@ -121,12 +121,12 @@ public class PromptBuilder {
             builder.add(new Section("Skills", 90, options.skillSection()));
         }
 
-        // 用户自定义指令（CLAUDE.md 等），优先级 80
+
         if (options.customInstructions() != null && !options.customInstructions().isEmpty()) {
             builder.add(new Section("CustomInstructions", 80, options.customInstructions()));
         }
 
-        // 持久记忆区（自动提取的记忆），优先级 85
+
         if (options.memorySection() != null && !options.memorySection().isEmpty()) {
             builder.add(new Section("Memory", 85, options.memorySection()));
         }

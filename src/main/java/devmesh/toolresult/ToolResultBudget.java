@@ -16,11 +16,6 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Layer 1 tool-result budget — Design A（与 Claude Code 对齐）.
- * 就地修改传入的 conv 中超限 ToolResultBlock 的 content，不创建新的
- * ConversationManager 副本。{@code state.seenIds} /
- * {@code state.replacements} 记录本轮决策；后续调用重放相同决策（preview
- * 字符串 byte-identical，不再触发 I/O），确保 prompt-cache prefix 稳定。
  */
 public final class ToolResultBudget {
 
@@ -62,11 +57,7 @@ public final class ToolResultBudget {
     }
 
     /**
-     * 就地修改 conv 中超限的 ToolResultBlock content（Design A）。
-     * 直接遍历 conv.getMessages()，对需要替换的 ToolResultBlock 创建新实例并
-     * 通过 msg.setToolResults() 写回，不创建新的 ConversationManager。
      *
-     * @return 本次新增的替换记录列表（供调用方写入 session transcript）
      */
     public static List<ContentReplacementRecord> apply(
             ConversationManager conv,
@@ -104,7 +95,7 @@ public final class ToolResultBudget {
                     continue;
                 }
                 if (isAlreadyReplaced(tr.content())) {
-                    // External pre-tagged content — freeze as the tag itself.
+
                     state.seenIds().add(id);
                     state.replacements().put(id, tr.content());
                     decisions.put(id, tr.content());
@@ -124,7 +115,7 @@ public final class ToolResultBudget {
                 }
                 String preview = spillAndPreview(spillDir, tr);
                 if (preview == null) {
-                    // Spill 失败 — 冻结原始内容，不再重试。
+
                     state.seenIds().add(tr.toolUseId());
                     decisions.put(tr.toolUseId(), tr.content());
                     persistedByP1.add(tr.toolUseId());
@@ -137,7 +128,7 @@ public final class ToolResultBudget {
                 persistedByP1.add(tr.toolUseId());
             }
 
-            // Pass 2: 聚合超限时，从最大的未处理结果开始 spill，直到 total ≤ MESSAGE_AGGREGATE_LIMIT。
+
             List<ToolResultBlock> remaining = new ArrayList<>();
             for (ToolResultBlock tr : fresh) {
                 if (!persistedByP1.contains(tr.toolUseId())) {
@@ -169,14 +160,14 @@ public final class ToolResultBudget {
                 }
             }
 
-            // 其余 fresh 结果冻结为"已见但未替换"。
+            // Freeze the remaining fresh results as "seen but not replaced".
             for (ToolResultBlock tr : fresh) {
                 if (decisions.containsKey(tr.toolUseId())) continue;
                 state.seenIds().add(tr.toolUseId());
                 decisions.put(tr.toolUseId(), tr.content());
             }
 
-            // 就地替换：按原始顺序重建 ToolResultBlock 列表，写回 msg。
+
             List<ToolResultBlock> newResults = new ArrayList<>(trs.size());
             for (ToolResultBlock tr : trs) {
                 String decided = decisions.get(tr.toolUseId());
@@ -201,9 +192,9 @@ public final class ToolResultBudget {
         boolean hasMore = content.length() > PREVIEW_CHARS;
         StringBuilder sb = new StringBuilder();
         sb.append("<persisted-output>\n");
-        sb.append("输出太大（").append(sizeKB).append("KB），完整内容已保存到：\n");
+        sb.append("Output too large (").append(sizeKB).append("KB); the full content was saved to:\n");
         sb.append(path).append("\n\n");
-        sb.append("预览（前 2KB）：\n").append(preview);
+        sb.append("Preview (first 2KB):\n").append(preview);
         if (hasMore) sb.append("\n...");
         sb.append("\n</persisted-output>");
         return sb.toString();

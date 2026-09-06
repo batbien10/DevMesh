@@ -15,7 +15,6 @@ import java.util.Set;
  *
  * <ol>
  *   <li>Seed {@code seenIds} with every candidate tool_use_id present in
- *       {@code messages} — anything visible at this point has been sent to
  *       the model, so its decision is implicitly frozen.</li>
  *   <li>Overlay {@code replacements} from on-disk records.</li>
  *   <li>Optionally gap-fill from {@code inheritedReplacements} (parent's

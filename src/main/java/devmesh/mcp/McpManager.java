@@ -137,7 +137,7 @@ public class McpManager {
         });
     }
 
-    // ── MCP Tool Wrapper ────────────────────────────────────────────────
+
 
     private static class McpToolWrapper implements Tool {
         private final String serverName;

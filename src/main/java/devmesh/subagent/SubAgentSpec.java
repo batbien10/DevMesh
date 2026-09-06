@@ -74,9 +74,9 @@ public record SubAgentSpec(
             null
     );
 
-    // maxTurns 不设置（默认 200，与 general-purpose 一致）。
-    // 之前的 30 轮限制在 LLM 需要大量 ToolSearch/Glob/Grep 调用时会过早触发
-    // "reached maximum iterations"，导致搜索结果不完整。
+
+
+
     public static final SubAgentSpec EXPLORE = new SubAgentSpec(
             "explore",
             "Fast read-only search agent for locating code",

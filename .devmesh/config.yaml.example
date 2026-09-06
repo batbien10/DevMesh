@@ -1,12 +1,12 @@
-# 将本文件复制为 .devmesh/config.yaml，再填写自己的 API 信息。
-# config.yaml 会被 Git 忽略，不会上传真实 API Key。
+# Copy this file to .devmesh/config.yaml and fill in your API information.
+# config.yaml is ignored by Git; real API keys will not be uploaded.
 
 providers:
-  # 大多数第三方平台、OneAPI/NewAPI、vLLM 和 Ollama 使用此协议。
+  # Most third-party platforms, OneAPI/NewAPI, vLLM, and Ollama use this protocol.
   - name: my-openai-compatible-api
     protocol: openai-compat
-    # 程序会自动拼接 /chat/completions。
-    # 如果完整接口是 https://example.com/v1/chat/completions，下面只填到 /v1。
+    # The application appends /chat/completions automatically.
+    # If the full endpoint is https://example.com/v1/chat/completions, set only /v1 here.
     base_url: https://example.com/v1
     api_key: "replace-with-your-api-key"
     model: replace-with-your-model-id
@@ -14,7 +14,7 @@ providers:
     context_window: 128000
     max_output_tokens: 8192
 
-  # Anthropic Messages API 示例：
+  # Anthropic Messages API example:
   # - name: anthropic-official
   #   protocol: anthropic
   #   base_url: https://api.anthropic.com
@@ -22,7 +22,7 @@ providers:
   #   model: claude-sonnet-4-20250514
   #   thinking: true
 
-  # OpenAI Responses API 示例（不是普通 Chat Completions）：
+  # OpenAI Responses API example (not regular Chat Completions):
   # - name: openai-official
   #   protocol: openai
   #   base_url: https://api.openai.com/v1
@@ -32,13 +32,13 @@ providers:
 
 permission_mode: default
 
-# MCP 是可选功能。需要时取消注释，并确保本机已安装相应运行环境。
+# MCP is optional. Uncomment when needed and make sure the required runtime is installed locally.
 # mcp_servers:
 #   - name: context7
 #     command: npx
 #     args: ["-y", "@upstash/context7-mcp"]
 
-# Streamable HTTP MCP 示例：
+# Streamable HTTP MCP example:
 # mcp_servers:
 #   - name: my-http-mcp
 #     url: https://example.com/mcp

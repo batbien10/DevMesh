@@ -42,7 +42,7 @@ public class AnthropicClient implements LlmClient {
         // Layer 2 of context-window resolution: best-effort fetch from the
         // provider's models endpoint, cached back onto cfg so a later
         // cfg.resolvedContextWindow() can use it. Never blocks startup or
-        // throws — any failure silently degrades to the built-in table.
+
         cfg.setFetchedContextWindow(fetchModelContextWindow());
     }
 
@@ -51,7 +51,6 @@ public class AnthropicClient implements LlmClient {
      * (Anthropic protocol only), reading {@code ModelInfo.max_input_tokens}.
      *
      * <p>Best-effort: returns {@code 0} on any error (network, auth, unknown
-     * model, missing field, timeout). Never throws — callers treat 0 as
      * "unavailable" and fall through to the next resolution layer.
      *
      * @return max input tokens (&gt; 0) on success, or {@code 0} on any failure
@@ -334,7 +333,7 @@ public class AnthropicClient implements LlmClient {
             var prev = merged.getLast();
             var curr = messages.get(i);
             if (prev.role().equals(curr.role())) {
-                // Both are simple text content — merge them
+
                 var prevContent = prev.content();
                 var currContent = curr.content();
                 if (prevContent.isString() && currContent.isString()) {
@@ -343,7 +342,7 @@ public class AnthropicClient implements LlmClient {
                             .content(prevContent.asString() + "\n\n" + currContent.asString())
                             .build());
                 } else {
-                    // One has block params — just append as-is, let API handle
+
                     merged.add(curr);
                 }
             } else {
@@ -379,7 +378,6 @@ public class AnthropicClient implements LlmClient {
      * byte-identical prefix hit the cache.
      *
      * <p>Mutates {@code messages} in place by swapping the trailing
-     * MessageParam for a rebuilt one with cache_control attached — the
      * SDK's builder is immutable, so we can't edit in place at the field
      * level.
      */
@@ -415,7 +413,7 @@ public class AnthropicClient implements LlmClient {
                             .cacheControl(CacheControlEphemeral.builder().build())
                             .build());
                 } else {
-                    return; // unsupported block type at tail — silently skip
+                    return;
                 }
                 blocks.set(blocks.size() - 1, rebuilt);
             } else {

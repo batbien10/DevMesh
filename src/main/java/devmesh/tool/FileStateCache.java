@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Read-before-edit enforcement cache.
  * Tracks which files have been read (via ReadFile) so that EditFile / WriteFile
- * can refuse to modify a file that the model has never seen — mirroring the
  * same guard that Claude Code applies.
  */
 public class FileStateCache {

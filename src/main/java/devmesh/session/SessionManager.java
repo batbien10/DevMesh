@@ -31,11 +31,9 @@ public class SessionManager {
      * {@link #saveCompactBoundary}.
      * <p>
      * {@code toolUseId} records the tool_use block ID from the API response so
-     * that chain validation can work correctly on resume — the model requires
      * tool_result blocks to reference the exact tool_use_id they respond to.
      */
     public record SessionMessage(String role, String type, String content, long timestamp, String toolUseId) {
-        /** Convenience constructor for plain (non-boundary) messages (无 toolUseId). */
         public SessionMessage(String role, String content, long timestamp) {
             this(role, null, content, timestamp, null);
         }
@@ -81,8 +79,6 @@ public class SessionManager {
     // ---- ID generation ----
 
     /**
-     * 生成带随机后缀的 session ID，格式为 yyyyMMdd-HHmmss-xxxx。
-     * 随机后缀使用 SecureRandom 生成 2 字节十六进制，防止同秒并发冲突。
      */
     public static String newId() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
@@ -90,7 +86,7 @@ public class SessionManager {
         try {
             java.security.SecureRandom.getInstanceStrong().nextBytes(randomBytes);
         } catch (java.security.NoSuchAlgorithmException e) {
-            // SecureRandom 极少失败；兜底用纳秒低 16 位
+
             int fallback = (int) (System.nanoTime() & 0xFFFF);
             return "%s-%04x".formatted(timestamp, fallback);
         }
@@ -105,7 +101,6 @@ public class SessionManager {
     }
 
     /**
-     * 保存带 toolUseId 的消息，用于 resume 时的 chain validation。
      */
     public static void saveMessageWithToolUseId(String workDir, String sessionId,
                                                  String role, String content, String toolUseId) {
@@ -151,7 +146,7 @@ public class SessionManager {
             }
             line.put("content", content);
             line.put("ts", Instant.now().getEpochSecond());
-            // toolUseId 用于 resume 时的 chain validation，仅在有值时写入
+
             if (toolUseId != null && !toolUseId.isEmpty()) {
                 line.put("tool_use_id", toolUseId);
             }
@@ -179,7 +174,7 @@ public class SessionManager {
                     String type = (String) map.get("type");
                     String content = (String) map.get("content");
                     long ts = map.get("ts") instanceof Number n ? n.longValue() : 0L;
-                    // 读取 toolUseId，用于 resume 时的 chain validation
+
                     String toolUseId = (String) map.get("tool_use_id");
                     if (content != null && !content.isEmpty()) {
                         messages.add(new SessionMessage(role, type, content, ts, toolUseId));
@@ -200,7 +195,6 @@ public class SessionManager {
      * Scan the loaded records for the LAST compaction boundary. Returns the
      * parsed boundary plus the plain (non-boundary) messages appended after it.
      * When no boundary exists (or its blob is corrupt) {@code found} is false and
-     * the caller should replay all records verbatim — backward-compatible with
      * old sessions that have no boundary records.
      */
     public static BoundaryScan findLastCompactBoundary(List<SessionMessage> messages) {
@@ -217,7 +211,7 @@ public class SessionManager {
         try {
             boundary = MAPPER.readValue(messages.get(last).content(), CompactBoundary.class);
         } catch (IOException e) {
-            // Corrupt boundary blob — fall back to full replay rather than losing
+
             // the conversation.
             return new BoundaryScan(null, List.of(), false);
         }
@@ -234,8 +228,6 @@ public class SessionManager {
 
     /**
      * Compaction-aware rebuild. If the session contains a {@code compact_boundary},
-     * the live conversation is the compacted state — [summary as user message] +
-     * kept tail + any plain messages appended after the boundary — and the
      * original pre-compaction prefix is NOT replayed (it stays in the file for
      * audit). Without a boundary (old sessions) everything is replayed verbatim.
      */
@@ -247,10 +239,10 @@ public class SessionManager {
         List<SessionMessage> replay = new ArrayList<>();
         // Summary becomes the leading user message with the same Chinese framing
         // as autoCompact, so the model sees a consistent context header on resume.
-        String resumeSummary = "本次会话延续自之前的对话，因上下文空间不足进行了压缩。以下是早期对话的摘要：\n\n"
+        String resumeSummary = "This session continues an earlier conversation that was compacted because the context window was running out of space. Here is a summary of the earlier conversation:\n\n"
                 + scan.boundary().summary();
         if (!scan.boundary().keep().isEmpty()) {
-            resumeSummary += "\n\n近期消息已原样保留。";
+            resumeSummary += "\n\nRecent messages have been preserved verbatim.";
         }
         replay.add(new SessionMessage("user", resumeSummary, 0L));
         for (KeepMessage k : scan.boundary().keep()) {
@@ -274,13 +266,9 @@ public class SessionManager {
 
     // ---- Session expiry cleanup ----
 
-    /** 过期阈值：30 天 */
     private static final long EXPIRY_DAYS = 30;
 
     /**
-     * 自动清理超过 30 天的过期 session 文件。
-     * 根据文件的最后修改时间判断是否过期。
-     * 失败时静默忽略——清理是尽力而为，不应影响正常流程。
      */
     public static void cleanExpiredSessions(String workDir) {
         Path baseDir = sessionsDir(workDir);
@@ -298,11 +286,11 @@ public class SessionManager {
                              Files.deleteIfExists(p);
                          }
                      } catch (IOException ignored) {
-                         // 单个文件清理失败不影响其它
+
                      }
                  });
         } catch (IOException ignored) {
-            // 目录不可读时静默忽略
+
         }
     }
 

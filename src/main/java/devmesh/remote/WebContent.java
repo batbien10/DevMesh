@@ -5,15 +5,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 内嵌的 Web UI 前端 HTML 页面。
- * 内容完全复制自 Go 版 internal/remote/web.go 的 indexHTML 常量，
- * 存储在 resources/com/devmesh/remote/index.html 中，启动时加载。
  */
 public final class WebContent {
 
     private WebContent() {}
 
-    /** 完整的 HTML 页面内容，包含 CSS + JavaScript */
     public static final String INDEX_HTML;
 
     static {

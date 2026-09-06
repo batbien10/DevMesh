@@ -14,9 +14,9 @@ public class CommandRegistry {
 
     private final List<Command> commands = new ArrayList<>();
     private final Map<String, Function<CommandContext, String>> handlers = new HashMap<>();
-    // 用于冲突检测：记录已注册的命令名和别名的归属关系
-    private final Map<String, String> nameIndex = new HashMap<>();   // name → ownerName
-    private final Map<String, String> aliasIndex = new HashMap<>();  // alias → ownerName
+
+    private final Map<String, String> nameIndex = new HashMap<>();
+    private final Map<String, String> aliasIndex = new HashMap<>();
 
     /** Creates a registry pre-populated with the default DevMesh commands. */
     public CommandRegistry() {
@@ -29,24 +29,23 @@ public class CommandRegistry {
 
     /**
      * Registers a command with an optional handler.
-     * 检测名称/别名冲突：与已有命令名或别名重复时抛出 IllegalArgumentException。
      *
      * @param cmd     command definition
      * @param handler handler function (args -> output); may be {@code null} for UI-only commands
      */
     public void register(Command cmd, Function<CommandContext, String> handler) {
-        // 命令名不能与已注册的命令名重复
+
         if (nameIndex.containsKey(cmd.name())) {
             throw new IllegalArgumentException(
                     "commands: duplicate command name '%s'".formatted(cmd.name()));
         }
-        // 命令名不能与已注册的别名冲突
+
         if (aliasIndex.containsKey(cmd.name())) {
             throw new IllegalArgumentException(
                     "commands: command name '%s' collides with alias of '%s'"
                             .formatted(cmd.name(), aliasIndex.get(cmd.name())));
         }
-        // 每个别名不能与已注册的命令名或别名冲突
+
         for (var alias : cmd.aliases()) {
             if (nameIndex.containsKey(alias)) {
                 throw new IllegalArgumentException(
@@ -60,7 +59,7 @@ public class CommandRegistry {
             }
         }
 
-        // 注册到索引
+
         nameIndex.put(cmd.name(), cmd.name());
         for (var alias : cmd.aliases()) {
             aliasIndex.put(alias, cmd.name());
@@ -76,9 +75,6 @@ public class CommandRegistry {
     }
 
     /**
-     * 检查命令的名称或别名是否与已注册条目冲突。
-     * 动态加载器（如从文件加载的命令）应在 register 前调用此方法，
-     * 避免触发 register 的异常。
      */
     public boolean hasConflict(Command cmd) {
         if (find(cmd.name()).isPresent()) {
@@ -316,7 +312,7 @@ public class CommandRegistry {
                 null
         );
 
-        // /skills (LOCAL) — supports /skills reload subcommand
+
         register(
                 new Command("skills", "List available skills (use '/skills reload' to hot-reload)",
                         new String[]{}, CommandType.LOCAL, false),
@@ -349,42 +345,42 @@ public class CommandRegistry {
                 }
         );
 
-        // /sandbox (LOCAL) — 沙箱模式管理
+
         register(
                 new Command("sandbox", "Manage OS-level sandbox for Bash commands",
                         new String[]{}, CommandType.LOCAL, false),
                 ctx -> {
                     String args = ctx.args();
                     if (args == null || args.isBlank()) {
-                        // 显示当前状态和可选模式
+
                         String status = ctx.sandboxStatus() != null ? ctx.sandboxStatus().get() : "unavailable";
                         var sb = new StringBuilder();
-                        sb.append("沙箱状态: ").append(status).append("\n\n");
-                        sb.append("可选模式:\n");
-                        sb.append("  /sandbox 1  — 开启沙箱 + 自动放行（推荐）\n");
-                        sb.append("  /sandbox 2  — 开启沙箱 + 常规权限\n");
-                        sb.append("  /sandbox 3  — 关闭沙箱\n");
+                        sb.append("Sandbox status: ").append(status).append("\n\n");
+                        sb.append("Available modes:\n");
+                        sb.append("  /sandbox 1  — Enable sandbox + auto-allow (recommended)\n");
+                        sb.append("  /sandbox 2  — Enable sandbox + standard permissions\n");
+                        sb.append("  /sandbox 3  — Disable sandbox\n");
                         return sb.toString();
                     }
 
                     String sub = args.strip();
                     if (ctx.sandboxSwitch() == null) {
-                        return "沙箱功能不可用（当前平台不支持或 bwrap/sandbox-exec 未安装）";
+                        return "Sandbox is unavailable (the current platform is unsupported or bwrap/sandbox-exec is not installed)";
                     }
                     return switch (sub) {
                         case "1" -> {
                             ctx.sandboxSwitch().accept(1);
-                            yield "已开启沙箱 + 自动放行模式。命令在 OS 级沙箱中执行，无需逐条确认。";
+                            yield "Sandbox enabled with auto-allow mode. Commands run in an OS-level sandbox without individual confirmation.";
                         }
                         case "2" -> {
                             ctx.sandboxSwitch().accept(2);
-                            yield "已开启沙箱 + 常规权限模式。命令在沙箱中执行，但仍需按权限规则确认。";
+                            yield "Sandbox enabled with standard permission mode. Commands run in the sandbox but still require permission checks.";
                         }
                         case "3" -> {
                             ctx.sandboxSwitch().accept(3);
-                            yield "已关闭沙箱。命令将直接执行。";
+                            yield "Sandbox disabled. Commands will run directly.";
                         }
-                        default -> "无效选项。使用 /sandbox 1|2|3 选择模式。";
+                        default -> "Invalid option. Use /sandbox 1|2|3 to select a mode.";
                     };
                 }
         );

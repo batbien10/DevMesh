@@ -30,7 +30,7 @@ public class PlanFile {
 
     private static String currentPlanPath;
 
-    // ── Slug generation ─────────────────────────────────────────────────
+
 
     /**
      * Generates a human-friendly slug such as {@code bold-sketch-0515-1423}.
@@ -48,7 +48,7 @@ public class PlanFile {
         return ADJECTIVES[ai] + "-" + NOUNS[ni] + "-" + timestamp;
     }
 
-    // ── Path management ─────────────────────────────────────────────────
+
 
     public static String getOrCreatePlanPath(String workDir) {
         if (currentPlanPath != null) {
@@ -80,7 +80,7 @@ public class PlanFile {
         currentPlanPath = null;
     }
 
-    // ── Persistence ─────────────────────────────────────────────────────
+
 
     public static boolean planExists() {
         return currentPlanPath != null && Files.exists(Path.of(currentPlanPath));
@@ -104,7 +104,7 @@ public class PlanFile {
         Files.writeString(target, content);
     }
 
-    // ── Utilities ───────────────────────────────────────────────────────
+
 
     /**
      * Returns {@code true} when {@code targetPath} refers to the same file

@@ -107,7 +107,7 @@ public class ConfigLoader {
             hooks.addAll(override.getHooks());
             base.setHooks(hooks);
         }
-        // 沙箱配置：override 层级可以覆盖
+
         if (override.getSandbox() != null) {
             if (base.getSandbox() == null) {
                 base.setSandbox(override.getSandbox());

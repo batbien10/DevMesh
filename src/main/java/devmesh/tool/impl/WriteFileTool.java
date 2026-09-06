@@ -75,7 +75,7 @@ public class WriteFileTool implements Tool {
 
         Path path = Path.of(filePath);
 
-        // Read-before-write enforcement — skip for new files
+
         if (fileStateCache != null && Files.exists(path)) {
             String absPath = path.toAbsolutePath().toString();
             String err = fileStateCache.validate(absPath);

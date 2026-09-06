@@ -20,7 +20,7 @@ import sun.misc.Signal;
 
 public class DevMesh {
 
-    // 默认 Remote 模式监听端口
+    // Default listening address for Remote mode.
     private static final String DEFAULT_REMOTE_ADDR = ":18888";
 
     public static void main(String[] args) {
@@ -30,7 +30,7 @@ public class DevMesh {
             return;
         }
 
-        // 解析 CLI 参数：-p "prompt"、--output-format、--remote[=addr] 和配置文件路径
+        // Parse CLI arguments: -p "prompt", --output-format, --remote[=addr], and the config path.
         String configPath = null;
         boolean remoteMode = false;
         String remoteAddr = DEFAULT_REMOTE_ADDR;
@@ -105,7 +105,7 @@ public class DevMesh {
             return;
         }
 
-        // 环境变量回退
+        // Fall back to the environment variable.
         if (configPath == null) {
             String envPath = System.getenv("DEVMESH_CONFIG");
             if (envPath != null && !envPath.isBlank()) {
@@ -122,7 +122,7 @@ public class DevMesh {
             return;
         }
 
-        // -p 模式：非交互式运行，输出结果到 stdout
+        // -p mode: run non-interactively and write the result to stdout.
         if (printPrompt != null) {
             PrintMode.OutputFormat fmt = "stream-json".equals(outputFormat)
                     ? PrintMode.OutputFormat.STREAM_JSON
@@ -131,7 +131,7 @@ public class DevMesh {
             return;
         }
 
-        // --remote 模式：启动 HTTP + WebSocket 服务器，不进入 TUI
+        // --remote mode: start the HTTP + WebSocket server without entering the TUI.
         if (remoteMode) {
             var server = new RemoteServer(
                     config.getProviders(),
@@ -149,7 +149,7 @@ public class DevMesh {
             return;
         }
 
-        // TUI 模式（默认）
+        // TUI mode (default).
         var model = new DevMeshModel(
                 config.getProviders(),
                 config.getMcpServers() != null ? config.getMcpServers() : List.of(),

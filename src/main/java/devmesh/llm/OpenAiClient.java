@@ -161,7 +161,7 @@ public class OpenAiClient implements LlmClient {
     private List<ResponseInputItem> buildInput(List<Message> messages) {
         var result = new ArrayList<ResponseInputItem>();
         for (var msg : messages) {
-            // Thinking blocks 作为 reasoning item 回传（Responses API）
+
             if (msg.getThinkingBlocks() != null) {
                 for (var tb : msg.getThinkingBlocks()) {
                     result.add(ResponseInputItem.ofReasoning(

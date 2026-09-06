@@ -3,13 +3,12 @@ package devmesh.sandbox;
 import java.util.List;
 
 /**
- * 控制沙箱的读写和网络权限。
  */
 public class SandboxConfig {
 
-    private final List<String> allowWrite;   // 允许写入的路径列表
-    private final List<String> denyWrite;    // 始终只读的路径（优先级高于 allowWrite）
-    private final boolean networkEnabled;    // 是否允许网络访问
+    private final List<String> allowWrite;
+    private final List<String> denyWrite;
+    private final boolean networkEnabled;
 
     public SandboxConfig(List<String> allowWrite, List<String> denyWrite, boolean networkEnabled) {
         this.allowWrite = allowWrite != null ? List.copyOf(allowWrite) : List.of();

@@ -60,7 +60,7 @@ public class FileHistory {
             Path bp = sessionDir.resolve(backupName(key, newVer));
             Files.write(bp, data);
         } catch (IOException ignored) {
-            // File doesn't exist yet (new file) — no backup, but still track
+
         }
 
         trackedFiles.put(key, newVer);
@@ -125,7 +125,7 @@ public class FileHistory {
                     changed.add(filePath);
                 }
             } catch (IOException e) {
-                // Backup missing → file didn't exist at that point
+
                 try {
                     if (Files.exists(Path.of(filePath))) {
                         Files.delete(Path.of(filePath));

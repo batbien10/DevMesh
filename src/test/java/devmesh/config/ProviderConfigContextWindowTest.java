@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * <ol>
  *   <li>explicit config {@code context_window} wins;</li>
  *   <li>auto-fetched value (cached) used when no config override;</li>
- *   <li>built-in model→window table;</li>
  *   <li>conservative default.</li>
  * </ol>
  * Plus the graceful-degradation contract: a failed fetch (cache never set, or
@@ -52,14 +51,14 @@ class ProviderConfigContextWindowTest {
 
     @Test
     void fetchedNonPositiveIsIgnoredAndFallsThrough() {
-        var c = cfg("gpt-4o"); // table → 128k
+        var c = cfg("gpt-4o");
         // Simulate a failed/empty fetch: must not poison the cache.
         c.setFetchedContextWindow(0);
         c.setFetchedContextWindow(-1);
         assertEquals(128_000, c.resolvedContextWindow());
     }
 
-    // ---- Layer 3: built-in model→window table (substring match) ----
+
 
     @Test
     void tableMatchesEachModelToExpectedWindow() {
@@ -104,9 +103,9 @@ class ProviderConfigContextWindowTest {
 
     @Test
     void resolveFallsBackToTableThenDefaultWithoutFetch() {
-        // No config override, no fetched value → table.
+
         assertEquals(200_000, cfg("claude-opus-4-6").resolvedContextWindow());
-        // No config, no fetch, no table hit → default.
+
         assertEquals(128_000, cfg("mystery-model").resolvedContextWindow());
     }
 }

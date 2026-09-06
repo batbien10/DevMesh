@@ -46,24 +46,22 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Remote Control 服务器，桥接 Agent 事件和 WebSocket 客户端。
- * 对标 Go 版 internal/remote/server.go 的完整功能集。
  */
 public class RemoteServer {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // ── 配置 ──────────────────────────────────────────────────────────
+
     private final List<ProviderConfig> providers;
     private final List<McpServerConfig> mcpConfigs;
     private final List<HookConfig> hookConfigs;
     private final String addr;
 
-    // ── WebSocket 连接池 ──────────────────────────────────────────────
+
     private final ReentrantLock connLock = new ReentrantLock();
     private final Set<WsContext> connections = ConcurrentHashMap.newKeySet();
 
-    // ── Agent 核心组件 ────────────────────────────────────────────────
+
     private Agent agent;
     private ConversationManager conversation;
     private ToolRegistry registry;
@@ -72,19 +70,19 @@ public class RemoteServer {
     private FileHistory fileHistory;
     private PermissionChecker permChecker;
 
-    // ── 流式状态 ──────────────────────────────────────────────────────
+
     private volatile boolean streaming;
     private volatile Thread streamThread;
     private BlockingQueue<AgentEvent> agentQueue;
 
-    // ── 权限和 ask_user 的待决响应 ────────────────────────────────────
+
     private final ReentrantLock pendingPermLock = new ReentrantLock();
     private final Map<String, CompletableFuture<PermissionResponse>> pendingPerms = new ConcurrentHashMap<>();
 
     private final ReentrantLock pendingAskLock = new ReentrantLock();
     private final Map<String, CompletableFuture<Map<String, String>>> pendingAsks = new ConcurrentHashMap<>();
 
-    // ── 命令和功能模块 ────────────────────────────────────────────────
+
     private CommandRegistry cmdRegistry;
     private SkillCatalog skillCatalog;
     private MemoryManager memoryManager;
@@ -110,16 +108,14 @@ public class RemoteServer {
     }
 
     /**
-     * 启动 HTTP + WebSocket 服务器。
-     * 初始化 Agent 后监听指定地址，阻塞直到服务器关闭。
      */
     public void run() throws Exception {
-        // 初始化 Agent（复刻 TUI 的 initializeProvider 流程）
+
         initAgent();
-        // 连接 MCP 服务器
+
         initMcpServers();
 
-        // 解析监听地址（格式 ":18888" 或 "0.0.0.0:18888"）
+        // Parse the listen address (for example, ":18888" or "0.0.0.0:18888").
         int port = parsePort(addr);
 
         Javalin app = Javalin.create()
@@ -130,14 +126,14 @@ public class RemoteServer {
                 .ws("/ws", ws -> {
                     ws.onConnect(ctx -> {
                         connections.add(ctx);
-                        // 新连接推送 session 信息
+
                         broadcast(Map.of(
                                 "type", "connected",
                                 "data", Map.of(
                                         "session", sessionId
                                 )
                         ));
-                        // 推送命令列表
+
                         broadcast(Map.of(
                                 "type", "commands",
                                 "data", buildCommandList()
@@ -150,32 +146,32 @@ public class RemoteServer {
 
         System.out.printf("%n  Remote UI: http://localhost:%d%n%n", port);
 
-        // 阻塞主线程，让服务器持续运行
+
         Thread.currentThread().join();
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // Agent 初始化（镜像 DevMeshModel.initializeProvider）
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     private void initAgent() {
         String workDir = System.getProperty("user.dir");
         ProviderConfig providerCfg = providers.get(0);
 
-        // 记忆管理
+
         memoryManager = new MemoryManager(workDir);
         instructionsContent = MemoryManager.loadInstructions(workDir);
 
-        // 构建系统提示词
+
         var env = PromptBuilder.detectEnvironment(providerCfg.getModel());
         var options = new PromptBuilder.BuildOptions(null, null, null);
         String systemPrompt = PromptBuilder.buildSystemPrompt(env, options);
 
-        // 创建 LLM 客户端
+
         client = LlmClient.create(providerCfg, systemPrompt);
         String protocol = providerCfg.getProtocol();
 
-        // 工具注册
+
         registry = ToolRegistry.createDefault();
         registry.register(new ToolSearchTool(registry, protocol));
 
@@ -184,41 +180,41 @@ public class RemoteServer {
         exitPlanTool.setPlanExists(() -> PlanFile.planExists());
         registry.register(exitPlanTool);
 
-        // AskUser 工具：Remote 模式通过事件队列桥接到 WebSocket
+
         askUserTool = new AskUserTool();
         registry.register(askUserTool);
 
-        // 子 Agent 工具
+
         var agentToolRef = new AgentTool(client, registry, protocol, providerCfg);
         subAgentTaskManager = new SubAgentTaskManager();
         agentToolRef.setTaskManager(subAgentTaskManager);
         registry.register(agentToolRef);
 
-        // Worktree 工具
+
         var worktreeManager = new WorktreeManager(workDir, List.of(), 720);
         agentToolRef.setWorktreeManager(worktreeManager);
         sessionId = SessionManager.newId();
         registry.register(new devmesh.tool.impl.EnterWorktreeTool(worktreeManager, sessionId));
         registry.register(new devmesh.tool.impl.ExitWorktreeTool(worktreeManager));
 
-        // 任务工具
+
         taskList = new TaskList("default", workDir);
         registry.register(new TaskTools.TaskCreateTool(taskList));
         registry.register(new TaskTools.TaskGetTool(taskList));
         registry.register(new TaskTools.TaskListTool(taskList));
         registry.register(new TaskTools.TaskUpdateTool(taskList));
 
-        // 团队工具
+
         teamManager = new TeamManager();
         agentToolRef.setTeamManager(teamManager);
         registry.register(new devmesh.teams.TeamTools.TeamCreateTool(teamManager));
         registry.register(new devmesh.teams.TeamTools.TeamDeleteTool(teamManager));
         registry.register(new devmesh.teams.TeamTools.SendMessageTool(teamManager, "lead"));
 
-        // 权限检查器
+
         permChecker = new PermissionChecker(PermissionMode.DEFAULT, Path.of(workDir));
 
-        // 会话和文件历史
+
         fileHistory = new FileHistory(workDir, sessionId);
         var fileStateCache = new devmesh.tool.FileStateCache();
         for (var tool : registry.listTools()) {
@@ -235,7 +231,7 @@ public class RemoteServer {
             }
         }
 
-        // 构建 Agent
+
         conversation = new ConversationManager();
         agent = new Agent(client, registry, protocol, providerCfg);
         agent.setFileHistory(fileHistory);
@@ -245,7 +241,7 @@ public class RemoteServer {
         agent.setWorkDir(workDir);
         agent.setSessionId(sessionId);
 
-        // 通知函数：排空团队邮箱和任务通知
+
         agent.setNotificationFn(() -> {
             var notes = new ArrayList<String>();
             notes.addAll(devmesh.teams.TeammateRunner.drainLeadMailbox(teamManager));
@@ -258,19 +254,19 @@ public class RemoteServer {
             return notes;
         });
 
-        // 工具名过滤器（团队协调模式）
+
         agent.setToolNameFilter(name -> {
             if (!enableCoordinatorMode) return true;
             if (teamManager.listTeams().isEmpty()) return true;
             return devmesh.teams.Coordinator.isCoordinatorTool(name);
         });
 
-        // 子 Agent 关联
+
         if (registry.get("Agent") instanceof AgentTool at) {
-            at.setProgressListener(progress -> {}); // remote 模式不需要 TUI 进度回调
+            at.setProgressListener(progress -> {});
         }
 
-        // Hook 引擎
+
         hookEngine = new HookEngine();
         if (hookConfigs != null && !hookConfigs.isEmpty()) {
             List<HookEngine.Hook> hooks = hookConfigs.stream().map(hc -> {
@@ -287,20 +283,20 @@ public class RemoteServer {
         }
         agent.setHookEngine(hookEngine);
 
-        // Skill 加载
+
         skillCatalog = new SkillCatalog();
         var skillDir = Path.of(workDir, ".devmesh", "skills");
         if (Files.isDirectory(skillDir)) {
             skillCatalog.loadFromDirectory(skillDir);
         }
 
-        // 命令注册
+
         cmdRegistry = new CommandRegistry();
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // MCP 服务器连接
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     private void initMcpServers() {
         if (mcpConfigs == null || mcpConfigs.isEmpty()) return;
@@ -311,7 +307,7 @@ public class RemoteServer {
             for (var t : result.tools()) registry.register(t);
             for (var e : result.errors()) System.err.println("MCP error: " + e);
 
-            // 构建 MCP 指令（首次用户消息时注入到对话）
+
             if (!result.servers().isEmpty()) {
                 var mcpParts = new ArrayList<String>();
                 for (var s : result.servers()) {
@@ -338,9 +334,9 @@ public class RemoteServer {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // WebSocket 消息处理
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     @SuppressWarnings("unchecked")
     private void handleWsMessage(WsContext ctx, String raw) {
@@ -353,7 +349,7 @@ public class RemoteServer {
                 case "user_message" -> {
                     if (data instanceof Map<?, ?> d) {
                         String content = (String) d.get("content");
-                        // 用虚拟线程处理用户消息，避免阻塞 WS 读循环
+
                         Thread.startVirtualThread(() -> handleUserMessage(content));
                     }
                 }
@@ -373,12 +369,12 @@ public class RemoteServer {
                     }
                 }
                 case "cancel" -> {
-                    // 中断当前流式响应
+
                     Thread t = streamThread;
                     if (t != null) t.interrupt();
                 }
                 case "ping" -> {
-                    // 应用层保活：回复 pong
+
                     broadcast(Map.of("type", "pong"));
                 }
             }
@@ -387,9 +383,9 @@ public class RemoteServer {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 用户消息处理
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     private void handleUserMessage(String content) {
         if (streaming) return;
@@ -397,7 +393,7 @@ public class RemoteServer {
         content = content != null ? content.strip() : "";
         if (content.isEmpty()) return;
 
-        // 斜杠命令处理
+
         if (content.startsWith("/")) {
             handleSlashCommand(content);
             return;
@@ -409,13 +405,13 @@ public class RemoteServer {
         SessionManager.saveMessage(workDir, sessionId, "user", content);
         conversation.addUserMessage(content);
 
-        // 首次消息时注入 MCP 指令
+
         if (!mcpInstructions.isEmpty()) {
             conversation.addSystemReminder(mcpInstructions);
             mcpInstructions = "";
         }
 
-        // 启动 Agent 并消费事件
+
         agentQueue = agent.run(conversation);
         if (askUserTool != null) askUserTool.setEventQueue(agentQueue);
 
@@ -428,13 +424,13 @@ public class RemoteServer {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 斜杠命令处理
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     private void handleSlashCommand(String input) {
         try {
-            // 解析命令名和参数
+
             String trimmed = input.substring(1).strip();
             String name, args;
             int spaceIdx = trimmed.indexOf(' ');
@@ -475,12 +471,12 @@ public class RemoteServer {
                         }
                         case "compact" -> {
                             handleCompact();
-                            return; // compact 自己管 command_done
+                            return;
                         }
                         case "plan" -> handlePlan(args);
                         case "resume" -> {
                             handleResume(args);
-                            return; // resume 自己管 command_done
+                            return;
                         }
                         case "rewind" -> broadcast(Map.of("type", "system", "data",
                                 Map.of("message", "Rewind is not yet supported in remote mode.")));
@@ -494,7 +490,7 @@ public class RemoteServer {
                     String displayText = "/" + name;
                     if (!args.isEmpty()) displayText += " " + args;
 
-                    // PROMPT 命令生成 prompt 注入给 Agent
+
                     streaming = true;
                     streamThread = Thread.currentThread();
                     String workDir = System.getProperty("user.dir");
@@ -542,16 +538,15 @@ public class RemoteServer {
                         : List.of(),
                 () -> 0,
                 () -> mcpManager != null ? "MCP connected" : "",
-                () -> "不可用",
+                () -> "Unavailable",
                 null
         );
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 特殊命令处理
-    // ────────────────────────────────────────────────────────────────────
 
-    /** /compact 命令：强制压缩对话上下文 */
+
+
+
     private void handleCompact() {
         if (client == null || conversation == null) {
             broadcast(Map.of("type", "error", "data",
@@ -575,7 +570,6 @@ public class RemoteServer {
         broadcast(Map.of("type", "command_done"));
     }
 
-    /** /plan 命令：进入计划模式 */
     private void handlePlan(String args) {
         if (permChecker == null) {
             broadcast(Map.of("type", "error", "data",
@@ -589,7 +583,7 @@ public class RemoteServer {
                 Map.of("message", "Entered Plan mode. Plan file: " + planPath
                         + "\nExplore the codebase and design your approach.")));
 
-        // 带参数直接发给 Agent
+
         if (args != null && !args.isEmpty()) {
             streaming = true;
             streamThread = Thread.currentThread();
@@ -609,13 +603,12 @@ public class RemoteServer {
         }
     }
 
-    /** /resume 命令：恢复历史会话 */
     private void handleResume(String args) {
         String workDir = System.getProperty("user.dir");
         var sessions = SessionManager.listSessions(workDir);
 
         if (args == null || args.isEmpty()) {
-            // 列出可选会话
+
             if (sessions.isEmpty()) {
                 broadcast(Map.of("type", "system", "data", Map.of("message", "No previous sessions found.")));
                 broadcast(Map.of("type", "command_done"));
@@ -638,7 +631,7 @@ public class RemoteServer {
             return;
         }
 
-        // 恢复指定会话
+
         String targetId = args.strip();
         try {
             int idx = Integer.parseInt(targetId);
@@ -655,12 +648,12 @@ public class RemoteServer {
             return;
         }
 
-        // 重建对话
+
         conversation = SessionManager.rebuildConversation(messages);
         sessionId = targetId;
         if (agent != null) agent.setSessionId(sessionId);
 
-        // 清除旧 UI 并重放消息
+
         broadcast(Map.of("type", "clear"));
         var scan = SessionManager.findLastCompactBoundary(messages);
         List<SessionManager.SessionMessage> replay;
@@ -695,11 +688,10 @@ public class RemoteServer {
         broadcast(Map.of("type", "command_done"));
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // Agent 事件消费
-    // ────────────────────────────────────────────────────────────────────
 
-    /** 从 Agent 事件队列中消费所有事件，推送到 WebSocket 客户端 */
+
+
+
     private void consumeAgentEvents() {
         var streamBuf = new StringBuilder();
         long startTime = System.currentTimeMillis();
@@ -727,7 +719,7 @@ public class RemoteServer {
                     broadcast(Map.of("type", "thinking_text", "data", Map.of("text", e.text())));
                 }
                 case AgentEvent.ThinkingComplete e -> {
-                    // 前端自行处理 thinking 完成状态
+
                 }
                 case AgentEvent.ToolUseEvent e -> {
                     broadcast(Map.of("type", "tool_use", "data", Map.of(
@@ -737,7 +729,7 @@ public class RemoteServer {
                     )));
                 }
                 case AgentEvent.ToolResultEvent e -> {
-                    // 工具结果前先结束当前流式文本
+
                     if (!streamBuf.isEmpty()) {
                         broadcast(Map.of("type", "stream_end", "data",
                                 Map.of("text", streamBuf.toString())));
@@ -752,7 +744,7 @@ public class RemoteServer {
                     )));
                 }
                 case AgentEvent.PermissionRequestEvent e -> {
-                    // 生成唯一 ID，通过 CompletableFuture 桥接前端响应
+
                     String id = "perm_" + System.nanoTime();
                     pendingPerms.put(id, e.future());
                     broadcast(Map.of("type", "permission_request", "data", Map.of(
@@ -764,7 +756,7 @@ public class RemoteServer {
                 case AgentEvent.AskUserRequestEvent e -> {
                     String id = "ask_" + System.nanoTime();
                     pendingAsks.put(id, e.future());
-                    // 将 Question 转换为前端可解析的 JSON 结构
+
                     var questions = e.questions().stream().map(q -> Map.of(
                             "question", q.text() != null ? q.text() : "",
                             "options", q.options() != null
@@ -788,7 +780,7 @@ public class RemoteServer {
                     broadcast(Map.of("type", "turn_complete", "data", Map.of("turn", e.turn())));
                 }
                 case AgentEvent.LoopComplete e -> {
-                    // 最后一段流式文本持久化到 session
+
                     if (!streamBuf.isEmpty()) {
                         String workDir = System.getProperty("user.dir");
                         SessionManager.saveMessage(workDir, sessionId, "assistant", streamBuf.toString());
@@ -801,7 +793,7 @@ public class RemoteServer {
                             "totalTurns", e.totalTurns(),
                             "elapsed", elapsed
                     )));
-                    return; // Agent 循环结束
+                    return;
                 }
                 case AgentEvent.UsageEvent e -> {
                     broadcast(Map.of("type", "usage", "data", Map.of(
@@ -825,11 +817,10 @@ public class RemoteServer {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 权限和 AskUser 响应处理
-    // ────────────────────────────────────────────────────────────────────
 
-    /** 处理前端权限按钮的回复 */
+
+
+
     private void handlePermissionResponse(String id, String response) {
         var future = pendingPerms.remove(id);
         if (future == null) return;
@@ -842,18 +833,16 @@ public class RemoteServer {
         future.complete(resp);
     }
 
-    /** 处理前端 AskUser 对话框的回复 */
     private void handleAskUserResponse(String id, Map<String, String> answers) {
         var future = pendingAsks.remove(id);
         if (future == null) return;
         future.complete(answers != null ? answers : Map.of());
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 命令列表
-    // ────────────────────────────────────────────────────────────────────
 
-    /** 构建命令列表供前端斜杠菜单使用 */
+
+
+
     private List<Map<String, String>> buildCommandList() {
         var list = new ArrayList<Map<String, String>>();
         for (var cmd : cmdRegistry.listVisible()) {
@@ -865,11 +854,10 @@ public class RemoteServer {
         return list;
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // WebSocket 广播
-    // ────────────────────────────────────────────────────────────────────
 
-    /** 向所有已连接的 WebSocket 客户端广播 JSON 消息 */
+
+
+
     private void broadcast(Map<String, Object> msg) {
         if (connections.isEmpty()) return;
         try {
@@ -886,11 +874,11 @@ public class RemoteServer {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // 工具方法
-    // ────────────────────────────────────────────────────────────────────
 
-    /** 从地址字符串解析端口号（支持 ":18888" 和 "0.0.0.0:18888" 格式） */
+
+
+
+    /** Parse a port from an address string (supports ":18888" and "0.0.0.0:18888"). */
     private static int parsePort(String addr) {
         if (addr == null || addr.isEmpty()) return 18888;
         int colonIdx = addr.lastIndexOf(':');
@@ -908,7 +896,7 @@ public class RemoteServer {
         }
     }
 
-    // ── Hook 事件名 / 动作类型解析（复刻 DevMeshModel） ──────────────
+
     private static HookEngine.EventName parseEventName(String s) {
         if (s == null) return HookEngine.EventName.SESSION_START;
         return switch (s.toLowerCase()) {

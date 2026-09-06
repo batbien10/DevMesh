@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>We don't have a live Anthropic endpoint in tests (the smoke-test config
  * uses an OpenAI-compatible proxy that returns nothing useful here), so we
- * point at a bogus base URL — which is exactly the failure mode the
  * degradation path must survive.
  */
 class AnthropicClientContextWindowTest {
@@ -29,7 +28,7 @@ class AnthropicClientContextWindowTest {
 
     @Test
     void constructionDoesNotThrowWhenFetchFails() {
-        // 127.0.0.1:1 is a closed port → connection refused quickly.
+
         var cfg = anthropicCfg("http://127.0.0.1:1");
         assertDoesNotThrow(() -> new AnthropicClient(cfg, "system"));
     }
@@ -47,7 +46,7 @@ class AnthropicClientContextWindowTest {
         var cfg = anthropicCfg("http://127.0.0.1:1");
         // Constructing the client triggers the (failing) auto-fetch + backfill.
         new AnthropicClient(cfg, "system");
-        // Cache stayed empty → resolution drops to the built-in table (claude → 200k).
+
         assertEquals(200_000, cfg.resolvedContextWindow());
     }
 

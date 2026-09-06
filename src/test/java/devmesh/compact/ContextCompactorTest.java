@@ -143,11 +143,11 @@ class ContextCompactorTest {
         assertEquals(raw, ContextCompactor.formatCompactSummary(raw));
     }
 
-    // ── messagesToKeep window ──────────────────────────────────────────
+
 
     @Test
     void keepStartReturnsZeroWhenEverythingFitsInKeepWindow() {
-        // Fewer than MIN_KEEP_MESSAGES messages → the whole thing is the keep
+
         // window, nothing left to summarize.
         ConversationManager conv = new ConversationManager();
         conv.addUserMessage("one");
@@ -188,10 +188,10 @@ class ContextCompactorTest {
 
         List<Message> after = conv.getMessages();
         // Summary user message must lead (no assistant ack after it).
-        assertTrue(after.get(0).getContent().contains("本次会话延续自之前的对话"));
+        assertTrue(after.get(0).getContent().contains("This session continues an earlier conversation"));
         assertTrue(after.get(0).getContent().contains("old prefix summarized"));
 
-        // The recent originals must survive verbatim — not be replaced by the summary.
+
         String joined = after.stream().map(Message::getContent).reduce("", (a, b) -> a + "\n" + b);
         assertTrue(joined.contains("RECENT_MARKER_ALPHA latest question"),
                 "recent user message must be kept verbatim");

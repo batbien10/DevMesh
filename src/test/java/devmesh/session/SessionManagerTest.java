@@ -83,7 +83,7 @@ class SessionManagerTest {
         assertFalse(id.isBlank());
     }
 
-    // ── compact_boundary round-trip ─────────────────────────────────────
+
 
     @Test
     void resumeRebuildsCompactedStateFromBoundary(@TempDir Path dir) {
@@ -101,7 +101,7 @@ class SessionManagerTest {
                 new SessionManager.KeepMessage("assistant", "kept assistant turn"));
         SessionManager.saveCompactBoundary(workDir, sessionId, "THE SUMMARY", keep);
 
-        // Continuation after the boundary (chained resume /续写).
+
         SessionManager.saveMessage(workDir, sessionId, "user", "post-boundary question");
         SessionManager.saveMessage(workDir, sessionId, "assistant", "post-boundary answer");
 
@@ -122,10 +122,10 @@ class SessionManagerTest {
 
         // Summary is the leading user message, wrapped in Chinese framing.
         assertEquals("user", msgs.get(0).getRole());
-        assertTrue(msgs.get(0).getContent().contains("本次会话延续自之前的对话"));
+        assertTrue(msgs.get(0).getContent().contains("This session continues an earlier conversation"));
         assertTrue(msgs.get(0).getContent().contains("THE SUMMARY"));
-        assertTrue(msgs.get(0).getContent().contains("近期消息已原样保留"),
-                "kept tail is non-empty so the framing should include 近期消息已原样保留");
+        assertTrue(msgs.get(0).getContent().contains("Recent messages have been preserved verbatim"),
+            "kept tail is non-empty so the framing should include the preserved-message notice");
 
         // Kept verbatim tail (original text preserved).
         assertEquals("user", msgs.get(1).getRole());
@@ -202,7 +202,7 @@ class SessionManagerTest {
         List<Message> msgs = conv.getMessages();
         // [SECOND SUMMARY with Chinese framing] + [second-kept] + [newest a]
         assertEquals(3, msgs.size());
-        assertTrue(msgs.get(0).getContent().contains("本次会话延续自之前的对话"));
+        assertTrue(msgs.get(0).getContent().contains("This session continues an earlier conversation"));
         assertTrue(msgs.get(0).getContent().contains("SECOND SUMMARY"));
         assertEquals("second-kept", msgs.get(1).getContent());
         assertEquals("newest a", msgs.get(2).getContent());

@@ -69,11 +69,9 @@ public class ProviderConfig {
      * highest priority first:
      *
      * <ol>
-     *   <li>Hand-written {@code context_window} from config (&gt; 0) — always wins.</li>
      *   <li>Value auto-fetched from the provider's models endpoint and cached
      *       via {@link #setFetchedContextWindow(int)} (Anthropic protocol only;
      *       the fetch itself is best-effort and silently degrades on failure).</li>
-     *   <li>Built-in model-name → window table (substring match, {@link #windowForModel}).</li>
      *   <li>Conservative default (200k for Claude, 128k otherwise).</li>
      * </ol>
      */
@@ -88,9 +86,7 @@ public class ProviderConfig {
     }
 
     /**
-     * Built-in "model name → context window" lookup (layers 3 and 4).
      * Matches by substring, from most specific to most generic. The values are
-     * sensible starting points only — they may drift as vendors update models,
      * so when a value is wrong set {@code context_window} in config to override.
      *
      * @param model the model id (may be {@code null})

@@ -91,7 +91,7 @@ class RecoveryAttachmentTest {
         }
 
         String out = ContextCompactor.buildRecoveryAttachment(state, null);
-        // 25K / 5K per skill ⇒ at most 5.
+
         int emitted = 0;
         int idx = 0;
         while ((idx = out.indexOf("### skill-", idx)) >= 0) {

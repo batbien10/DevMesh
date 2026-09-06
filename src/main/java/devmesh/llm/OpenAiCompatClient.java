@@ -25,7 +25,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * LLM client targeting the OpenAI Chat Completions API ({@code /chat/completions}).
  * <p>
- * This is the "compat" variant — it speaks the widely-adopted Chat Completions
  * wire format instead of the newer Responses API, making it compatible with any
  * provider that exposes a {@code /chat/completions} endpoint (vLLM, Ollama,
  * Together, Groq, etc.).
@@ -124,7 +123,7 @@ public class OpenAiCompatClient implements LlmClient {
         var toolNames = new HashMap<Integer, StringBuilder>();
         var toolArgs = new HashMap<Integer, StringBuilder>();
         var toolIds = new HashMap<Integer, String>();
-        // 累积 reasoning_content（DeepSeek/小米等 provider）
+
         var reasoningAccum = new StringBuilder();
         boolean streamEnded = false;
 
@@ -198,7 +197,7 @@ public class OpenAiCompatClient implements LlmClient {
             }
         }
 
-        // ---- reasoning_content（DeepSeek/小米等 provider 的非标准字段）----
+
         if (delta.has("reasoning_content") && !delta.get("reasoning_content").isNull()) {
             String rc = delta.get("reasoning_content").asText();
             if (!rc.isEmpty()) {
@@ -365,7 +364,7 @@ public class OpenAiCompatClient implements LlmClient {
             boolean hasToolUses = msg.getToolUses() != null && !msg.getToolUses().isEmpty();
             boolean hasToolResults = msg.getToolResults() != null && !msg.getToolResults().isEmpty();
 
-            // 拼接 thinking blocks 为 reasoning_content（DeepSeek/小米等 provider 要求）
+
             String reasoning = "";
             if (msg.getThinkingBlocks() != null) {
                 var sb = new StringBuilder();

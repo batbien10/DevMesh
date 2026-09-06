@@ -6,15 +6,15 @@ build/
 *.iml
 out/
 
-# DevMesh 本地状态：只提交配置模板和内置 Skills。
+# DevMesh local state: commit only configuration templates and built-in Skills.
 .devmesh/*
 !.devmesh/config.yaml.example
 !.devmesh/skills/
 !.devmesh/skills/**
 
-# 本地开发工具配置。
+# Local development-tool configuration.
 .claude/
 CLAUDE.md
 
-# 临时空文件
+# Temporary empty files.
 lyww.qq

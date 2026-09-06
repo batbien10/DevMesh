@@ -3,8 +3,6 @@ package devmesh.config;
 import java.util.Map;
 
 /**
- * YAML 配置中单条 hook 的映射类。
- * 字段与 config.yaml 中 hooks 列表的每一项一一对应。
  */
 public class HookConfig {
 
@@ -16,35 +14,24 @@ public class HookConfig {
     private String message;
     private boolean reject;
 
-    // ---- 以下为对齐 Go 版新增字段 ----
 
-    /** 是否只执行一次（同一个 session 内按 id 去重） */
+
     private boolean once;
 
-    /** 异步执行：不阻塞主流程 */
     private boolean async;
 
     /**
-     * action 失败时的行为：
-     *   "fail"   — 传播错误（阻塞 hook 默认行为）
-     *   "ignore" — 记录日志并继续
-     *   "reject" — 将失败视为 reject（仅 pre_tool_use 有效）
      */
     private String onError;
 
-    /** HTTP action 的 URL */
     private String url;
 
-    /** HTTP action 的方法（GET/POST/PUT 等，默认 POST） */
     private String method;
 
-    /** HTTP action 的请求头 */
     private Map<String, String> headers;
 
-    /** HTTP action 的请求体 */
     private String body;
 
-    /** 命令/HTTP 请求的超时时间（秒），0 或不设表示使用默认值 */
     private int timeout;
 
     // ---- getters & setters ----

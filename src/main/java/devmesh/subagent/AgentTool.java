@@ -55,7 +55,6 @@ public class AgentTool implements Tool {
     /** Optional: team manager for team_name registration. */
     private devmesh.teams.TeamManager teamManager;
 
-    /** 标识当前 AgentTool 的生成上下文；fork 子 Agent 中会被设为 FORK_QUERY_SOURCE */
     private String querySource = "";
 
     private static final String FORK_BOILERPLATE_TAG = "<fork_boilerplate>";
@@ -71,7 +70,6 @@ public class AgentTool implements Tool {
             5. Final report must be under 500 characters, starting with "Scope:".
             </fork_boilerplate>""";
 
-    /** fork 子 Agent 的 querySource 标记值，用于运行时拦截嵌套 fork */
     private static final String FORK_QUERY_SOURCE = "agent:builtin:fork";
 
     public AgentTool(LlmClient client, ToolRegistry parentRegistry, String protocol,
@@ -109,7 +107,6 @@ public class AgentTool implements Tool {
     /**
      * Parent agent's tool-result decision log. Fork children Clone() it at
      * spawn time so they make the same decisions on tool_use_ids inherited
-     * from the parent — necessary to keep the prompt-cache prefix
      * byte-identical across parent and child. Non-fork sub-agents (those
      * with subagent_type) start with a fresh state.
      */
@@ -131,8 +128,6 @@ public class AgentTool implements Tool {
     public void setQuerySource(String querySource) { this.querySource = querySource; }
 
     /**
-     * 浅复制当前 AgentTool 并设置新的 querySource。
-     * fork 用它来标记子 Agent 的 AgentTool，使嵌套 fork 在调用时被拦截。
      */
     public AgentTool cloneWithQuerySource(String qs) {
         AgentTool clone = new AgentTool(this.client, this.parentRegistry, this.protocol, this.providerConfig);
@@ -314,7 +309,7 @@ public class AgentTool implements Tool {
             return ToolResult.error("Error: fork requires task manager for background execution");
         }
 
-        // 主检测：querySource 标记（压缩安全，对话历史被摘要后仍可检测）
+
         if (FORK_QUERY_SOURCE.equals(querySource)) {
             return ToolResult.error("Error: cannot fork from a forked agent. Use subagent_type to spawn a definition-based agent instead.");
         }
@@ -330,8 +325,8 @@ public class AgentTool implements Tool {
         ConversationManager forkedConv = buildForkedConversation(parentConversation, prompt);
 
         LlmClient subClient = selectClient(null, modelOverride);
-        // fork 继承父 Agent 的完整工具池（对齐 Claude Code 的 useExactTools），
-        // AgentTool 实例的 querySource 被标记以拦截嵌套
+
+
         ToolRegistry forkedRegistry = ToolFilter.cloneForFork(parentRegistry);
         String taskId = taskManager.spawnForkAgent(
                 subClient, forkedRegistry, protocol, providerConfig,

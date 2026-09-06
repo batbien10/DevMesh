@@ -24,8 +24,8 @@ import java.util.*;
  */
 public final class AgentLoader {
 
-    // Go 版已移除模型白名单校验：第三方模型名（如 "glm-5.1"）需要透传给路由层，
-    // 只对 "inherit" 做标准化（小写），其余保持原样
+
+
 
     private final Map<String, SubAgentSpec> agents = new LinkedHashMap<>();
 
@@ -140,7 +140,7 @@ public final class AgentLoader {
             throw new IllegalArgumentException(
                     "Agent definition %s: missing required field 'description'".formatted(path));
         }
-        // 标准化 "inherit"（不区分大小写），其余模型名原样透传给路由层
+
         if (model != null) {
             model = model.strip();
             if (model.equalsIgnoreCase("inherit")) {

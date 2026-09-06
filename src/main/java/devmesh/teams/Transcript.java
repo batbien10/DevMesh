@@ -17,10 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 队友对话记录的持久化与恢复。
- * 将队友的完整对话历史序列化为 JSON 文件，存储在
- * .devmesh/teams/{teamName}/transcripts/{agentId}.json，
- * 用于调试和问题排查。
  */
 public final class Transcript {
 
@@ -29,7 +25,7 @@ public final class Transcript {
 
     private Transcript() {}
 
-    // ── 序列化数据结构 ──────────────────────────────────────────
+
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     record TranscriptEntry(
@@ -53,10 +49,9 @@ public final class Transcript {
             @JsonProperty("is_error") boolean isError
     ) {}
 
-    // ── 序列化/反序列化 ──────────────────────────────────────
+
 
     /**
-     * 将对话历史序列化为可持久化的条目列表。
      */
     static List<TranscriptEntry> serializeConversation(ConversationManager conv) {
         var entries = new ArrayList<TranscriptEntry>();
@@ -79,7 +74,6 @@ public final class Transcript {
     }
 
     /**
-     * 从磁盘格式恢复对话管理器。
      */
     static ConversationManager deserializeConversation(List<TranscriptEntry> entries) {
         var conv = new ConversationManager();
@@ -100,20 +94,16 @@ public final class Transcript {
         return conv;
     }
 
-    // ── 公开 API ────────────────────────────────────────────────
+
 
     /**
-     * 返回团队的 transcript 存储目录。
      */
     static Path transcriptDir(String teamName) {
         return Path.of(System.getProperty("user.dir"), ".devmesh", "teams", teamName, "transcripts");
     }
 
     /**
-     * 将队友的对话历史持久化到磁盘，用于调试和问题排查。
-     * 文件路径为 .devmesh/teams/{team}/transcripts/{agentId}.json。
      *
-     * @return 写入的文件路径
      */
     public static Path saveTranscript(String teamName, String agentId, ConversationManager conv) throws IOException {
         Path dir = transcriptDir(teamName);
@@ -125,8 +115,6 @@ public final class Transcript {
     }
 
     /**
-     * 从磁盘加载队友的对话历史。
-     * 文件不存在或解析失败时返回 null。
      */
     public static ConversationManager loadTranscript(String teamName, String agentId) {
         Path path = transcriptDir(teamName).resolve(agentId + ".json");

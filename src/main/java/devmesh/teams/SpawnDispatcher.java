@@ -47,7 +47,7 @@ public final class SpawnDispatcher {
                 return new SpawnResult(mode, null);
             }
             case TMUX -> {
-                // 任务写入邮箱，新进程首次轮询即可获取
+
                 if (config.task() != null && !config.task().isEmpty()) {
                     team.sendMessage(TeammateRunner.LEAD_NAME, config.memberName(), config.task());
                 }
@@ -57,7 +57,7 @@ public final class SpawnDispatcher {
                 return new SpawnResult(mode, paneId);
             }
             case ITERM -> {
-                // iTerm2 后端：在新标签页中启动队友进程
+
                 if (config.task() != null && !config.task().isEmpty()) {
                     team.sendMessage(TeammateRunner.LEAD_NAME, config.memberName(), config.task());
                 }

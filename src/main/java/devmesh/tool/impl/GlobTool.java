@@ -107,7 +107,7 @@ public class GlobTool implements Tool {
             return ToolResult.error("Error: " + e.getMessage());
         }
 
-        // 按修改时间倒序，最近修改的排前面
+
         matches.sort((a, b) -> {
             try {
                 long ma = Files.getLastModifiedTime(root.resolve(a)).toMillis();

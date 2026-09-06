@@ -4,7 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Global singleton maintaining name → agent_id mappings.
  */
 public final class AgentNameRegistry {
 

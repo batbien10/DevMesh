@@ -291,7 +291,7 @@ public class TaskList {
             }
             return MAPPER.readValue(data, new TypeReference<List<Task>>() {});
         } catch (IOException e) {
-            // Corrupted or unreadable file — start fresh
+
             return new ArrayList<>();
         }
     }

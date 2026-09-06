@@ -7,11 +7,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 测试 {@link SkillInstaller} 中不依赖网络的逻辑：URL 解析和名称校验。
  */
 class SkillInstallerTest {
 
-    // ── skills.sh URL 格式 ────────────────────────────────────────────
+
 
     @Test
     void parseSkillsShURL() {
@@ -40,7 +39,7 @@ class SkillInstallerTest {
                 () -> SkillInstaller.parseSkillURL("https://skills.sh/owner/repo"));
     }
 
-    // ── github.com URL 格式 ──────────────────────────────────────────
+
 
     @Test
     void parseGitHubTreeURL() {
@@ -71,7 +70,7 @@ class SkillInstallerTest {
                         "https://github.com/owner/repo/blob/main/file.md"));
     }
 
-    // ── raw.githubusercontent.com URL 格式 ──────────────────────────
+
 
     @Test
     void parseRawGitHubURL() {
@@ -91,7 +90,7 @@ class SkillInstallerTest {
                         "https://raw.githubusercontent.com/a/b/main"));
     }
 
-    // ── 异常 URL ─────────────────────────────────────────────────────
+
 
     @Test
     void parseUnsupportedHost() {
@@ -105,7 +104,7 @@ class SkillInstallerTest {
                 () -> SkillInstaller.parseSkillURL("ftp://skills.sh/a/b/c"));
     }
 
-    // ── 名称校验 ─────────────────────────────────────────────────────
+
 
     @ParameterizedTest
     @ValueSource(strings = {"my-skill", "skill_name", "a123", "test"})

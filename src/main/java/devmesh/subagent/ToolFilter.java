@@ -11,7 +11,6 @@ import java.util.Set;
  * for a sub-agent. The filtering layers (applied in order) are:
  * <ul>
  *   <li>Layer 1: MCP tools (prefixed with "mcp__") always pass through.</li>
- *   <li>Layer 2: {@code ALWAYS_DISALLOWED} — globally blocked tools
  *       (TaskOutput, ExitPlanMode, EnterPlanMode, Agent, AskUserQuestion,
  *       TaskStop, Workflow).</li>
  *   <li>Layer 3: If the agent is a custom agent, also block
@@ -110,7 +109,7 @@ public final class ToolFilter {
                     // In-process teammates get extra tools even in async mode
                     if (isInProcessTeammate
                             && ("Agent".equals(name) || IN_PROCESS_TEAMMATE_ALLOWED.contains(name))) {
-                        // fall through — permitted
+
                     } else {
                         continue;
                     }
@@ -133,10 +132,6 @@ public final class ToolFilter {
     }
 
     /**
-     * Fork 专用：复制父注册表的全部工具，不做任何过滤。
-     * 遇到 AgentTool 时浅复制并标记 querySource，
-     * 确保 fork 子 Agent 不能再次 fork（运行时拦截），
-     * 同时保持工具定义与父 Agent 字节一致以命中 prompt cache。
      */
     public static ToolRegistry cloneForFork(ToolRegistry source) {
         ToolRegistry forked = new ToolRegistry();

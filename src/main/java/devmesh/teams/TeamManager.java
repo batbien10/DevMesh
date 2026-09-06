@@ -62,19 +62,17 @@ public class TeamManager {
     }
 
     /**
-     * 面板后端自动检测，优先级：tmux 会话内 > iTerm2 会话内 > tmux 可用 > 进程内回退。
-     * 与 Go 版 detectPaneBackend() 对齐。
      */
     public static TeamMode detectPaneBackend() {
-        // 已在 tmux 会话中：直接用 tmux
+
         if (System.getenv("TMUX") != null && !System.getenv("TMUX").isEmpty()) {
             return TeamMode.TMUX;
         }
-        // 已在 iTerm2 会话中：通过 ITERM_SESSION_ID 环境变量检测
+
         if (System.getenv("ITERM_SESSION_ID") != null && !System.getenv("ITERM_SESSION_ID").isEmpty()) {
             return TeamMode.ITERM;
         }
-        // tmux 已安装但不在会话中：启动新 tmux 窗格
+
         try {
             Process p = new ProcessBuilder("which", "tmux").start();
             if (p.waitFor() == 0) return TeamMode.TMUX;
@@ -82,7 +80,7 @@ public class TeamManager {
         return TeamMode.IN_PROCESS;
     }
 
-    // ── Inner classes ──────────────────────────────────────────────────
+
 
     private static Path teamsBaseDir() {
         return Path.of(System.getProperty("user.dir"), ".devmesh", "teams");

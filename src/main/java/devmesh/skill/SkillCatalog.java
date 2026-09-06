@@ -14,13 +14,11 @@ import java.util.stream.Stream;
  * Phase-1 loading reads only frontmatter (fast startup); {@link #getFull}
  * triggers a phase-2 re-read of the body on each call (hot reload).
  * <p>
- * Three-tier loading via {@link #loadCatalog}: builtins → user global
- * ({@code ~/.devmesh/skills/}) → project ({@code .devmesh/skills/}),
  * with later tiers overriding earlier ones by name.
  */
 public class SkillCatalog {
 
-    // ── Data types ──────────────────────────────────────────────────────
+
 
     public record SkillMeta(
             String name,
@@ -38,7 +36,7 @@ public class SkillCatalog {
         }
     }
 
-    // ── State ───────────────────────────────────────────────────────────
+
 
     private final Map<String, Skill> skills = new LinkedHashMap<>();
     private final Map<String, String> sources = new LinkedHashMap<>();
@@ -46,7 +44,7 @@ public class SkillCatalog {
 
     private String workDir;
 
-    // ── Public API ──────────────────────────────────────────────────────
+
 
     public String getWorkDir() {
         return workDir;
@@ -102,7 +100,7 @@ public class SkillCatalog {
         return sources.getOrDefault(name, "");
     }
 
-    // ── Three-tier catalog loading ─────────────────────────────────────
+
 
     /**
      * Builds a catalog by merging three tiers, with later sources
@@ -114,7 +112,7 @@ public class SkillCatalog {
         SkillCatalog c = new SkillCatalog();
         c.workDir = workDir;
 
-        // Tier 1: 从 resources/builtins/ 加载嵌入的内置 skill（优先级最低）
+
         for (var skill : BuiltinSkills.load()) {
             c.register(skill, "builtin");
         }
@@ -144,9 +142,6 @@ public class SkillCatalog {
     }
 
     /**
-     * 检查 skill 目录的 modtime 是否自上次加载以来发生了变化。
-     * modtime 变化表示有新增或删除的 skill（已有 skill 的文件编辑
-     * 由 getFull 的按需重读处理）。
      */
     public boolean needsReload() {
         for (var entry : dirModTimes.entrySet()) {
@@ -224,7 +219,7 @@ public class SkillCatalog {
         }
     }
 
-    // ── Context building ───────────────────────────────────────────────
+
 
     /**
      * Build a context block suitable for system-prompt injection that
@@ -246,7 +241,7 @@ public class SkillCatalog {
         return sb.toString();
     }
 
-    // ── Loading internals ───────────────────────────────────────────────
+
 
     private static Skill loadSkill(Path dir) throws IOException {
         // Strategy 1: skill.yaml + prompt.md

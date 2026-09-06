@@ -10,7 +10,7 @@ public class AppConfig {
     private List<McpServerConfig> mcpServers;
     private List<HookConfig> hooks;
 
-    // 沙箱配置（嵌套对象，对应 YAML 中的 sandbox: 节点）
+
     private SandboxYamlConfig sandbox;
 
     private boolean enableCoordinatorMode;

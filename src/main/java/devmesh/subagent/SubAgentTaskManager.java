@@ -187,8 +187,6 @@ public class SubAgentTaskManager {
     }
 
     /**
-     * Fork 专用：用已经 clone 好的注册表（不再过滤）生成后台子 Agent。
-     * 与 {@link #spawnSubAgent} 的区别：跳过 ToolFilter，maxTurns 固定 200。
      */
     public String spawnForkAgent(
             devmesh.llm.LlmClient client,
@@ -201,7 +199,7 @@ public class SubAgentTaskManager {
         String taskId = createTask("fork: " + truncate(prompt, 50));
 
         Thread thread = Thread.startVirtualThread(() -> {
-            // 不调 ToolFilter.filterForAgent——fork 使用 cloneForFork 产生的完整注册表
+
             var subAgent = new devmesh.agent.Agent(client, registry, protocol, cfg);
             subAgent.setMaxIterations(200);
             if (parentState != null) {

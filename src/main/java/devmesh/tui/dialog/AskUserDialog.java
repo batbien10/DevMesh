@@ -26,7 +26,7 @@ import java.util.TreeSet;
  */
 public class AskUserDialog {
 
-    // ── Styles (matching Go renderQuestionNavBar / renderQuestionView) ───
+
     private static final ANSI256Color BRAND_PURPLE = new ANSI256Color(99);
     private static final ANSI256Color DIM_TEXT     = new ANSI256Color(242);
     private static final ANSI256Color BRIGHT_TEXT  = new ANSI256Color(255);
@@ -50,7 +50,7 @@ public class AskUserDialog {
     private static final Style DIM_ARROW = Style.newStyle()
             .foreground(DIM_TEXT);
 
-    // ── State ───────────────────────────────────────────────────────────
+
     private boolean active;
     private List<Question> questions;
 
@@ -75,7 +75,7 @@ public class AskUserDialog {
     /** 0 = Submit, 1 = Cancel on the submit view. */
     private int submitCursor;
 
-    // ── Data records ────────────────────────────────────────────────────
+
 
     /**
      * A single survey question.
@@ -95,7 +95,7 @@ public class AskUserDialog {
      */
     public record Option(String label, String description) {}
 
-    // ── Lifecycle ───────────────────────────────────────────────────────
+
 
     /**
      * Show the dialog, resetting all state for a new set of questions.
@@ -126,7 +126,7 @@ public class AskUserDialog {
         return active;
     }
 
-    // ── Key handling ────────────────────────────────────────────────────
+
 
     /**
      * Process a single key press.
@@ -143,12 +143,12 @@ public class AskUserDialog {
 
         boolean multiQuestion = questions.size() > 1;
 
-        // ── Submit tab ──────────────────────────────────────────────────
+
         if (onSubmitTab) {
             return handleSubmitTabKey(key, multiQuestion);
         }
 
-        // ── Question view ───────────────────────────────────────────────
+
         Question q = questions.get(questionIndex);
         int optCount = q.options().size() + 1; // options + "Other"
         int cursor = cursors[questionIndex];
@@ -253,7 +253,7 @@ public class AskUserDialog {
         return null;
     }
 
-    // ── Answer collection helpers ───────────────────────────────────────
+
 
     /**
      * Persist the current question's answer into the {@link #answers} map
@@ -308,7 +308,7 @@ public class AskUserDialog {
         return Map.of("_declined", "true");
     }
 
-    // ── Rendering ───────────────────────────────────────────────────────
+
 
     /**
      * Render the dialog as a plain ANSI-styled string.
@@ -347,7 +347,7 @@ public class AskUserDialog {
         return sb.toString();
     }
 
-    // ── Navigation bar ──────────────────────────────────────────────────
+
 
     private String renderNavBar() {
         var sb = new StringBuilder();
@@ -393,7 +393,7 @@ public class AskUserDialog {
         return sb.toString();
     }
 
-    // ── Question view ───────────────────────────────────────────────────
+
 
     private String renderQuestionView() {
         var sb = new StringBuilder();
@@ -482,7 +482,7 @@ public class AskUserDialog {
         return sb.toString();
     }
 
-    // ── Submit view ─────────────────────────────────────────────────────
+
 
     private String renderSubmitView() {
         var sb = new StringBuilder();
@@ -533,7 +533,7 @@ public class AskUserDialog {
         return sb.toString();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────
+
 
     /**
      * Compute the maximum rendered line count across all questions,

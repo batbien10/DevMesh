@@ -1,6 +1,6 @@
 package devmesh.config;
 
-// 沙箱 YAML 配置节点，对应 config.yaml 中的 sandbox: 块
+
 public class SandboxYamlConfig {
     private boolean enabled;
     private boolean autoAllow = true;

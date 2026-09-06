@@ -50,7 +50,7 @@ public class WorktreeManager {
      * @return metadata about the created worktree
      */
     public synchronized WorktreeInfo create(String branch, Path targetDir) throws Exception {
-        // 在执行任何 git 操作前校验分支名，防止路径穿越和非法字符
+
         SlugValidator.validate(branch);
 
         Path wtDir = targetDir != null

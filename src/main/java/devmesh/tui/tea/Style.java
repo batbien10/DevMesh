@@ -2,7 +2,7 @@ package devmesh.tui.tea;
 
 import java.util.ArrayList;
 
-// 终端文本样式（前景色、背景色、粗体、内边距），用 ANSI 转义序列渲染
+
 public final class Style {
 
     private Integer fg;
@@ -32,7 +32,7 @@ public final class Style {
         return this;
     }
 
-    // padding(vertical, horizontal) — 只用水平方向的左右空格填充
+
     public Style padding(int vertical, int horizontal) {
         this.padLeft = horizontal;
         this.padRight = horizontal;

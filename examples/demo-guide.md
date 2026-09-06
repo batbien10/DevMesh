@@ -1,8 +1,8 @@
-# DevMesh 功能演示指南
+# DevMesh Demo Guide
 
-这套流程用于在约 10 分钟内展示 DevMesh 的工程完整性、Agent 交互能力、可观测性和 Skill 进化机制。
+This workflow demonstrates DevMesh's engineering completeness, Agent interaction, observability, and Skill Evolution in about 10 minutes.
 
-## 1. 构建与测试
+## 1. Build and test
 
 Windows PowerShell：
 
@@ -10,32 +10,32 @@ Windows PowerShell：
 .\gradlew.bat test shadowJar
 ```
 
-预期结果：
+Expected results:
 
-- Gradle Wrapper 校验通过；
-- 120 项自动化测试通过；
-- 生成 `build/libs/devmesh.jar`。
+- Gradle Wrapper verification passes;
+- 120 automated tests pass;
+- `build/libs/devmesh.jar` is generated.
 
-## 2. Remote Web 交互
+## 2. Remote Web interaction
 
-先复制配置模板，并在本地填写 Provider 信息。真实配置已被 `.gitignore` 排除，不要提交 API Key。
+Copy the configuration template and fill in the Provider information locally. Real configuration is excluded by `.gitignore`; never commit an API key.
 
 ```powershell
 Copy-Item .\.devmesh\config.yaml.example .\.devmesh\config.yaml
 java -jar .\build\libs\devmesh.jar .\.devmesh\config.yaml --remote=127.0.0.1:18888
 ```
 
-浏览器访问 <http://127.0.0.1:18888>，可以使用下面的无工具提示验证流式输出：
+Open <http://127.0.0.1:18888> in a browser and use the following no-tool prompt to verify streaming output:
 
 ```text
-请用三点简短介绍 DevMesh：多模型接入、MCP 工具、上下文治理与运行轨迹评测。不要调用工具。
+Briefly introduce DevMesh in three points: multi-model access, MCP tools, context management, and run-trace evaluation. Do not call tools.
 ```
 
-如需演示代码分析，请只选择允许发送给模型的公开文件，并在提示中明确“只读、不修改、不读取配置文件”。
+For a code-analysis demo, select only public files that may be sent to the model and state clearly in the prompt: "read-only, do not modify files, do not read configuration files."
 
-## 3. Trace 报告与质量门禁
+## 3. Trace reports and quality gates
 
-完成一次任务后执行：
+After completing a task, run:
 
 ```powershell
 java -jar .\build\libs\devmesh.jar --trace-report .\.devmesh\traces
@@ -45,29 +45,29 @@ java -jar .\build\libs\devmesh.jar `
   --trace-policy .\evals\agent-reliability.yaml
 ```
 
-重点说明：轨迹记录操作名、耗时、token、状态和参数键名，默认不记录提示词、API Key、文件内容和工具返回值。
+Emphasize that traces record operation names, durations, tokens, status, and parameter names, and do not record prompts, API keys, file contents, or tool return values by default.
 
 ## 4. Verified Skill Evolution
 
-先运行无需模型 API 的核心生命周期测试：
+First run the core lifecycle tests, which do not require a model API:
 
 ```powershell
 .\gradlew.bat test --tests "devmesh.evolution.*"
 ```
 
-然后查看以下可复现输入：
+Then inspect these reproducible inputs:
 
 - `examples/skill-evolution/safe-java-refactor.yaml`
 - `examples/skill-evolution/baseline-outcomes.jsonl`
 - `examples/skill-evolution/candidate-outcomes.jsonl`
 - `evals/skill-evolution.yaml`
 
-演示时可重点说明 `quarantine → canary → outcome/trace/non-regression gates → verified → promoted` 的状态变化，以及失败后的拒绝和回滚路径。
+During the demo, highlight the state transitions from `quarantine → canary → outcome/trace/non-regression gates → verified → promoted`, as well as rejection and rollback after failures.
 
-## 5. 建议演示顺序
+## 5. Suggested demo order
 
-1. 从 `devmesh.DevMesh` 说明启动与模式选择；
-2. 从 `Agent` 说明 ReAct 与流式 Tool Calling；
-3. 从 `ToolRegistry`、`PermissionChecker`、`HookEngine` 和 `Sandbox` 说明安全执行链；
-4. 从 `AgentTracer`、`TraceEvaluator` 说明可观测性和质量门禁；
-5. 从 `SkillEvolutionService` 说明候选 Skill 如何验证、发布和回滚。
+1. Use `devmesh.DevMesh` to explain startup and mode selection;
+2. Use `Agent` to explain the ReAct loop and streaming Tool Calling;
+3. Use `ToolRegistry`, `PermissionChecker`, `HookEngine`, and `Sandbox` to explain the secure execution chain;
+4. Use `AgentTracer` and `TraceEvaluator` to explain observability and quality gates;
+5. Use `SkillEvolutionService` to explain how candidate Skills are verified, published, and rolled back.

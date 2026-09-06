@@ -15,7 +15,7 @@ public final class TeamTools {
 
     private TeamTools() {}
 
-    // ── SendMessage ────────────────────────────────────────────────────
+
 
     public static class SendMessageTool implements Tool {
         private final TeamManager teamMgr;
@@ -80,7 +80,7 @@ public final class TeamTools {
                     return ToolResult.success("Message sent to " + to + ".");
                 }
                 // Fallback: sender belongs to this team but recipient not in Members
-                // (tmux mode — each process only knows itself). Write to mailbox directly.
+
                 if (team.hasMember(senderName)) {
                     team.sendMessage(senderName, to, content);
                     return ToolResult.success("Message sent to " + to + ".");
@@ -91,7 +91,7 @@ public final class TeamTools {
         }
     }
 
-    // ── TeamCreate ─────────────────────────────────────────────────────
+
 
     public static class TeamCreateTool implements Tool {
 
@@ -178,7 +178,7 @@ public final class TeamTools {
         }
     }
 
-    // ── TeamDelete ─────────────────────────────────────────────────────
+
 
     public static class TeamDeleteTool implements Tool {
         private final TeamManager teamMgr;

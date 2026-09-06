@@ -14,26 +14,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.stream.Stream;
 
 /**
- * 记忆管理器，使用独立 .md 文件 + MEMORY.md 索引的统一存储格式。
  *
- * <p>存储结构：
  * <ul>
- *   <li>用户级 (~/.devmesh/memory/)：存放 type=user / type=feedback 的记忆文件</li>
- *   <li>项目级 (.devmesh/memory/)：存放 type=project / type=reference 的记忆文件</li>
  * </ul>
  *
- * <p>每条记忆是一个独立的 .md 文件，包含 YAML frontmatter（name, description, type）。
- * 每个目录下有一个 MEMORY.md 索引文件，用一行指针格式 `- [Title](file.md) — description`
- * 汇总该目录下的所有记忆。
  */
 public class MemoryManager {
 
-    /** MEMORY.md 索引文件名 */
     private static final String ENTRYPOINT_NAME = "MEMORY.md";
     private static final int EXTRACTION_INTERVAL = 5;
     private static final String MEMORY_DIR = ".devmesh/memory";
 
-    // user/feedback 跟随用户；project/reference 跟随项目
+
     private static final Set<String> USER_TYPES = Set.of("user", "feedback");
     private static final Set<String> PROJECT_TYPES = Set.of("project", "reference");
 
@@ -44,29 +36,25 @@ public class MemoryManager {
     public MemoryManager(String workDir) {
         this.projectMemDirPath = Path.of(workDir, MEMORY_DIR);
         this.userMemDirPath = Path.of(System.getProperty("user.home"), MEMORY_DIR);
-        // 确保目录存在，让 Agent 的 Write 工具可以直接写入
+
         ensureDir(userMemDirPath);
         ensureDir(projectMemDirPath);
     }
 
     // ---- Directory accessors (for memory recall) ----
 
-    /** 返回用户级记忆目录（~/.devmesh/memory/） */
     public Path userMemDir() {
         return userMemDirPath;
     }
 
-    /** 返回项目级记忆目录（.devmesh/memory/） */
     public Path projectMemDir() {
         return projectMemDirPath;
     }
 
-    /** 返回项目级 MEMORY.md 的路径 */
     public Path entrypointPath() {
         return projectMemDirPath.resolve(ENTRYPOINT_NAME);
     }
 
-    /** 返回用户级 MEMORY.md 的路径 */
     public Path userEntrypointPath() {
         return userMemDirPath.resolve(ENTRYPOINT_NAME);
     }
@@ -74,8 +62,6 @@ public class MemoryManager {
     // ---- Accessors ----
 
     /**
-     * 返回所有记忆的摘要行，格式为 "[type] name — description"。
-     * 扫描两个目录下的 .md 文件（不含 MEMORY.md），按文件名排序。
      */
     public List<String> getMemories() {
         var files = loadAll();
@@ -94,7 +80,6 @@ public class MemoryManager {
     }
 
     /**
-     * 清除两个目录下的所有 .md 文件（包括 MEMORY.md）。
      */
     public void clear() {
         clearDir(userMemDirPath);
@@ -103,12 +88,9 @@ public class MemoryManager {
 
     // ---- Memory file record ----
 
-    /** 一个记忆文件的元数据 */
     public record MemoryFile(String path, String filename, String name, String description, String type) {}
 
     /**
-     * 扫描两个目录，加载所有记忆文件的 frontmatter 元数据。
-     * 用户级在前，项目级在后。
      */
     List<MemoryFile> loadAll() {
         var out = new ArrayList<MemoryFile>();
@@ -147,7 +129,7 @@ public class MemoryManager {
                         fp.getFileName().toString(),
                         name, fm.description(), fm.type()));
             } catch (IOException ignored) {
-                // 跳过不可读的文件
+
             }
         }
         return out;
@@ -169,8 +151,6 @@ public class MemoryManager {
     // ---- Build system-reminder section ----
 
     /**
-     * 构建记忆系统的 system-reminder 部分，包含 MEMORY.md 索引内容。
-     * 确保两个目录都存在后读取各自的 MEMORY.md。
      */
     public String buildSystemReminder() {
         ensureDir(userMemDirPath);
@@ -179,10 +159,10 @@ public class MemoryManager {
         var sb = new StringBuilder();
         sb.append("# auto memory\n\n");
 
-        // 用户级 MEMORY.md
+
         appendEntrypoint(sb, "User-level", userMemDirPath);
         sb.append("\n\n");
-        // 项目级 MEMORY.md
+
         appendEntrypoint(sb, "Project-level", projectMemDirPath);
 
         return sb.toString();
@@ -206,7 +186,6 @@ public class MemoryManager {
     // ---- Extraction via LLM ----
 
     /**
-     * 扫描已有记忆文件，生成 manifest 给 LLM 做去重。
      */
     private String scanExistingMemories() {
         var entries = new ArrayList<String>();
@@ -218,7 +197,7 @@ public class MemoryManager {
                      .forEach(f -> {
                          try {
                              String content = Files.readString(f);
-                             // 简单解析 frontmatter
+
                              String type = extractField(content, "type");
                              String desc = extractField(content, "description");
                              if (type.isEmpty()) type = "?";
@@ -232,14 +211,12 @@ public class MemoryManager {
     }
 
     /**
-     * 通过 LLM 从对话中提取记忆（参照 Go 版 extractor.go）。
-     * 发送已有记忆 manifest 做去重，使用 MEMORY_NAME/TYPE/DESC/BODY 格式解析输出。
      */
     public void extract(LlmClient client, ConversationManager conv) {
         List<Message> messages = conv.getMessages();
         if (messages.size() < 4) return;
 
-        // 只取最近 40 条消息
+
         int start = Math.max(0, messages.size() - 40);
         var sb = new StringBuilder();
         for (int i = start; i < messages.size(); i++) {
@@ -247,7 +224,7 @@ public class MemoryManager {
             sb.append('[').append(msg.getRole()).append("]: ").append(msg.getContent()).append('\n');
         }
 
-        // 扫描已有记忆做去重
+
         String manifest = scanExistingMemories();
         String manifestSection = manifest.isEmpty() ? "" :
                 "\n\n## Existing memory files\n\n" + manifest +
@@ -291,7 +268,7 @@ public class MemoryManager {
         String output = result.toString().trim();
         if (output.isEmpty() || output.equals("NONE") || !output.contains("MEMORY_NAME:")) return;
 
-        // 解析 MEMORY_NAME/TYPE/DESC/BODY 格式
+
         for (String block : output.split("---")) {
             if (!block.contains("MEMORY_NAME:")) continue;
             String name = extractField(block, "MEMORY_NAME");
@@ -312,7 +289,6 @@ public class MemoryManager {
     }
 
     /**
-     * 将一条记忆写为独立的 .md 文件，并在 MEMORY.md 索引中追加指针。
      */
     private void writeMemoryFile(Path dir, String name, String type, String description, String body) {
         ensureDir(dir);
@@ -327,7 +303,7 @@ public class MemoryManager {
             return;
         }
 
-        // 更新 MEMORY.md 索引
+
         Path entrypoint = dir.resolve(ENTRYPOINT_NAME);
         String pointer = "- [%s](%s) — %s\n".formatted(name, filename, description);
         try {
@@ -339,8 +315,6 @@ public class MemoryManager {
     }
 
     /**
-     * 按 `### <type>` 分组解析 LLM 提取输出。
-     * 大小写不敏感，归一化为小写。
      */
     static Map<String, String> parseTypedSections(String text) {
         Map<String, String> out = new LinkedHashMap<>();
@@ -373,7 +347,6 @@ public class MemoryManager {
     // ---- Injection ----
 
     /**
-     * 向对话注入已有的记忆内容（MEMORY.md 索引）。
      */
     public void injectMemories(ConversationManager conv) {
         String reminder = buildSystemReminder();
@@ -389,9 +362,6 @@ public class MemoryManager {
     // ---- Custom instructions ----
 
     /**
-     * 加载指令文件：支持用户级（~/.devmesh/DEVMESH.md）、项目级（git root 到 workDir 逐层）、
-     * 兼容旧版 INSTRUCTIONS.md、私有 DEVMESH.local.md，以及 @include 递归展开。
-     * 委托给 {@link InstructionLoader} 实现完整的发现和展开逻辑。
      */
     public static String loadInstructions(String workDir) {
         return InstructionLoader.loadInstructions(workDir);

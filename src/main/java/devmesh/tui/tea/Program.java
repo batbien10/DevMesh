@@ -12,13 +12,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 基于 JLine 的 Bubble Tea 风格 TUI 运行时。
  *
- * 内联渲染（与 Bubble Tea 完全一致）：
- *  - view 从当前光标位置开始画，不用 \033[H]，不破坏之前的终端内容
- *  - 重绘时 cursor up 回到 view 起始行覆写
- *  - println 清除 view 后写文本，文本留在终端 scrollback
- *  - linesRendered 跟踪 view 中的 \n 数量（= 行数 - 1）
  */
 public class Program {
 
@@ -28,8 +22,8 @@ public class Program {
     private PrintWriter writer;
     private volatile boolean running;
 
-    // Bubble Tea 风格：linesRendered = view 中的 \n 数量
-    // cursor up 这么多行就回到 view 第一行
+
+
     private int linesRendered;
     private String lastViewContent = "";
 
@@ -84,7 +78,7 @@ public class Program {
             Thread.currentThread().interrupt();
         } finally {
             running = false;
-            // 清掉 view（println 已在 scrollback 里了）
+
             clearView();
             writer.print("\033[?25h");
             writer.flush();
@@ -92,13 +86,12 @@ public class Program {
         }
     }
 
-    // ── 内联渲染（Bubble Tea 方式）────────────────────────────────────
+
 
     private static final java.util.regex.Pattern ANSI_PATTERN =
             java.util.regex.Pattern.compile("\033\\[[0-9;]*[a-zA-Z]|\033][^\007\033]*(?:\007|\033\\\\)");
 
     /**
-     * 计算字符串在终端中的显示宽度（CJK 全角字符占 2 列）。
      */
     public static int displayWidth(String s) {
         int w = 0;
@@ -127,8 +120,6 @@ public class Program {
     }
 
     /**
-     * 计算 cursor-up 行数（考虑终端宽度换行 + CJK 全角字符）。
-     * 返回值 = 总物理行数 - 1（cursor 已在最后一行，不需要额外 up）。
      */
     private int physicalLinesForCursorUp(String[] lines) {
         int cols = terminal != null ? terminal.getSize().getColumns() : 80;
@@ -146,18 +137,18 @@ public class Program {
         if (view.equals(lastViewContent)) return;
         lastViewContent = view;
 
-        // 去掉末尾换行（view 不以 \n 结尾，cursor 留在最后一行末尾）
+
         if (view.endsWith("\n")) {
             view = view.substring(0, view.length() - 1);
         }
 
-        // cursor up 回到 view 起始行
+
         if (linesRendered > 0) {
             writer.print("\033[" + linesRendered + "A");
         }
         writer.print("\r");
 
-        // 逐行写入，每行末尾 \033[K 清除残余字符
+
         String[] lines = view.split("\n", -1);
         var sb = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
@@ -165,19 +156,19 @@ public class Program {
             if (i < lines.length - 1) sb.append("\n");
         }
         writer.print(sb);
-        // 清除多余行
+
         writer.print("\033[J");
 
-        // 用物理行数计算 cursor-up 距离（考虑长行换行），- 1 因为 cursor 已在最后一行
+
         linesRendered = physicalLinesForCursorUp(lines);
-        // 安全阀：不超过终端高度，防止 cursor-up 越界擦进 scrollback
+
         int maxLines = terminal != null ? terminal.getSize().getRows() - 1 : 23;
         if (linesRendered > maxLines) linesRendered = maxLines;
 
         writer.flush();
     }
 
-    // 清除当前 view 区域
+
     private void clearView() {
         if (linesRendered > 0) {
             writer.print("\033[" + linesRendered + "A");
@@ -188,7 +179,7 @@ public class Program {
         writer.flush();
     }
 
-    // ── 命令执行 ────────────────────────────────────────────────────────
+
 
     private void executeCommand(Command cmd) {
         if (cmd == null) return;
@@ -214,7 +205,7 @@ public class Program {
                 for (var c : b.commands()) executeCommand(c);
             }
             case Command.PrintLine p -> {
-                // 清除 view，写 println 文本（留在终端 scrollback），重绘 view
+
                 clearView();
                 writer.print(p.text() + "\n");
                 writer.flush();
@@ -223,7 +214,7 @@ public class Program {
         }
     }
 
-    // ── 按键读取 ────────────────────────────────────────────────────────
+
 
     private void keyReaderLoop() {
         NonBlockingReader reader = terminal.reader();
@@ -262,7 +253,7 @@ public class Program {
         return null;
     }
 
-    // SS3 格式方向键：\x1bOA/B/C/D（Windows Terminal 等常用此格式）
+
     private Message parseSS3(NonBlockingReader reader) throws IOException {
         int ch = reader.read(80);
         if (ch == -2 || ch == -1) return key("escape");

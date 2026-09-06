@@ -1,7 +1,6 @@
 package devmesh.memory;
 
 /**
- * Human-readable memory age helpers. Models are poor at date arithmetic —
  * a raw ISO timestamp doesn't trigger staleness reasoning the way
  * "47 days ago" does.
  */
@@ -30,7 +29,6 @@ public final class MemoryAge {
 
     /**
      * Staleness warning for memories older than 1 day. Returns "" for
-     * fresh (today/yesterday) memories — warning there is noise.
      */
     public static String freshnessText(long mtimeMs) {
         int d = ageDays(mtimeMs);

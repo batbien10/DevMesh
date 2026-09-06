@@ -63,7 +63,7 @@ public class StreamingExecutor {
     }
 
     public List<ToolExecResult> executeAll(List<ToolCallInfo> calls) {
-        // 按相邻性分批：连续的只读工具合成一个并行批次，写/命令工具各自独占一批
+
         var batches = partitionToolCalls(calls);
         var results = new ArrayList<ToolExecResult>();
 
@@ -112,7 +112,7 @@ public class StreamingExecutor {
             return new ToolExecResult(call.toolId(), "Error: unknown tool '" + call.toolName() + "'", true);
         }
 
-        // 权限检查优先于 hook（与 Go 版保持一致）：先拦截无权操作，再让 hook 介入
+
         if (checker != null) {
             var check = checker.check(tool, call.args());
             switch (check.decision()) {
@@ -149,7 +149,7 @@ public class StreamingExecutor {
             }
         }
 
-        // Pre-tool hook 在权限通过后执行，可拦截特定工具调用
+
         if (hookEngine != null) {
             var hookResult = hookEngine.runPreToolHooks(call.toolName(), call.args());
             if (hookResult.rejected()) {
@@ -230,7 +230,7 @@ public class StreamingExecutor {
             recoveryState.recordFileRead(path, content);
         } catch (IOException ignored) {
             // Best-effort snapshot; if the file vanished between the tool
-            // call and now, just skip — the model has the tool output it
+
             // already saw.
         }
     }

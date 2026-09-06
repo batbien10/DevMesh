@@ -26,14 +26,13 @@ public final class MemoryScanner {
     /** How many lines to read for frontmatter parsing. */
     private static final int FRONTMATTER_MAX_LINES = 30;
 
-    /** MEMORY.md is the entrypoint index — not a memory file itself. */
     private static final String ENTRYPOINT_NAME = "MEMORY.md";
 
     /** YAML-ish frontmatter block: starts with `---`, ends with `---`. */
     private static final Pattern FRONTMATTER_RE =
             Pattern.compile("\\A---\\s*\\n(.*?)\\n---\\s*\\n", Pattern.DOTALL);
 
-    // ── Header record ──────────────────────────────────────────────────
+
 
     /**
      * One scanned memory file's metadata.
@@ -47,7 +46,7 @@ public final class MemoryScanner {
             String type         // frontmatter type; "" if unrecognized
     ) {}
 
-    // ── Scan ───────────────────────────────────────────────────────────
+
 
     /**
      * Walk {@code memoryDir} for .md files (excluding MEMORY.md), read
@@ -55,7 +54,6 @@ public final class MemoryScanner {
      * capped at {@link #MAX_MEMORY_FILES}.
      *
      * @param memoryDir the directory to scan
-     * @param scope     "user" or "project" — threaded into each header
      * @return headers sorted by mtime descending; empty list if dir missing
      */
     public static List<MemoryHeader> scanMemoryFiles(Path memoryDir, String scope) {
@@ -90,7 +88,7 @@ public final class MemoryScanner {
         return results;
     }
 
-    // ── Header parsing ─────────────────────────────────────────────────
+
 
     private static MemoryHeader readMemoryHeader(Path filePath, Path memoryDir, String scope) {
         long mtimeMs;
@@ -124,7 +122,7 @@ public final class MemoryScanner {
                 mtimeMs, fm.description(), fm.type());
     }
 
-    // ── Frontmatter ────────────────────────────────────────────────────
+
 
     record Frontmatter(String name, String description, String type) {}
 
@@ -170,7 +168,7 @@ public final class MemoryScanner {
         return VALID_TYPES.contains(raw);
     }
 
-    // ── Manifest formatting ────────────────────────────────────────────
+
 
     private static final DateTimeFormatter ISO_MS =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);

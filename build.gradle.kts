@@ -22,7 +22,7 @@ repositories {
 }
 
 dependencies {
-    // 终端 I/O（TUI 框架的底层驱动）
+    // Terminal I/O (the TUI framework's low-level driver).
     implementation("org.jline:jline:3.28.0")
 
     // Markdown terminal rendering

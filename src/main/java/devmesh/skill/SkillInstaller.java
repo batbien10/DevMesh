@@ -19,16 +19,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 从 GitHub 下载并原子安装 skill 到本地目录。
  * <p>
- * 核心流程：解析 URL → 通过 GitHub Contents API 递归下载 → staging 临时目录 → rename 到最终位置。
- * 失败时 staging 目录被清理，不会留下残缺文件。
  * <p>
- * 安全限制：单文件最大 1 MiB，总大小最大 8 MiB，最多 64 个文件，最深 4 层目录。
  */
 public final class SkillInstaller {
 
-    // ── 安全限制常量 ──────────────────────────────────────────────────
+
     private static final int MAX_FILE_SIZE = 1 << 20;       // 1 MiB
     private static final long MAX_TOTAL_SIZE = 8L << 20;    // 8 MiB
     private static final int MAX_FILE_COUNT = 64;
@@ -45,7 +41,6 @@ public final class SkillInstaller {
         this("https://api.github.com");
     }
 
-    /** 支持测试时替换 API 地址。 */
     public SkillInstaller(String apiBase) {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(HTTP_TIMEOUT)
@@ -54,12 +49,10 @@ public final class SkillInstaller {
         this.apiBase = apiBase;
     }
 
-    // ── URL 解析 ──────────────────────────────────────────────────────
+
 
     /**
-     * 将用户提供的 URL 解析为 {@link SkillSource}。
      * <p>
-     * 支持三种格式：
      * <ol>
      *   <li>{@code https://www.skills.sh/<owner>/<repo>/<skill-name>}</li>
      *   <li>{@code https://github.com/<owner>/<repo>/tree/<ref>/<subpath>}</li>
@@ -75,7 +68,7 @@ public final class SkillInstaller {
         }
 
         String host = uri.getHost();
-        // 去掉首尾 / 后按 / 拆分
+
         String path = uri.getPath();
         if (path == null) path = "";
         String trimmed = path.replaceAll("^/+|/+$", "");
@@ -108,7 +101,7 @@ public final class SkillInstaller {
                     throw new IllegalArgumentException("raw.githubusercontent.com URL too short");
                 }
                 String[] subParts = java.util.Arrays.copyOfRange(parts, 3, parts.length);
-                // 去掉尾部文件名（含 . 的视为文件）
+
                 if (subParts.length > 0 && subParts[subParts.length - 1].contains(".")) {
                     subParts = java.util.Arrays.copyOf(subParts, subParts.length - 1);
                 }
@@ -124,12 +117,10 @@ public final class SkillInstaller {
         };
     }
 
-    // ── 安装主流程 ────────────────────────────────────────────────────
+
 
     /**
-     * 将 src 描述的 skill 下载并安装到 {@code installRoot/<name>/}。
      * <p>
-     * 写入过程是原子的：先 stage 到同级临时目录，成功后 rename。
      */
     public InstallReport install(SkillSource src, String installRoot) throws IOException {
         if (src == null) {
@@ -140,10 +131,10 @@ public final class SkillInstaller {
         Path root = Path.of(installRoot);
         Files.createDirectories(root);
 
-        // staging 目录与最终目录同级，保证 rename 在同一文件系统内
+
         Path staging = Files.createTempDirectory(root, ".install-" + src.name() + "-");
         try {
-            // 计数器用可变 holder（record 不可变，这里用 long 数组绕开）
+
             int[] fileCount = {0};
             long[] totalBytes = {0L};
 
@@ -153,7 +144,7 @@ public final class SkillInstaller {
                 throw new IOException("downloaded tree missing SKILL.md or skill.yaml — not a skill?");
             }
 
-            // 覆盖已有安装
+
             Path finalDir = root.resolve(src.name());
             if (Files.exists(finalDir)) {
                 deleteRecursively(finalDir);
@@ -163,7 +154,7 @@ public final class SkillInstaller {
             return new InstallReport(src.name(), finalDir.toString(), fileCount[0], totalBytes[0]);
 
         } catch (Exception e) {
-            // 失败时清理 staging
+
             deleteRecursively(staging);
             if (e instanceof IOException io) throw io;
             throw new IOException(e);
@@ -171,7 +162,6 @@ public final class SkillInstaller {
     }
 
     /**
-     * 返回用户全局 skill 安装目录 ~/.devmesh/skills，不存在则创建。
      */
     public static String userSkillsRoot() throws IOException {
         Path root = Path.of(System.getProperty("user.home"), ".devmesh", "skills");
@@ -179,10 +169,9 @@ public final class SkillInstaller {
         return root.toString();
     }
 
-    // ── GitHub Contents API 交互 ──────────────────────────────────────
+
 
     /**
-     * GitHub Contents API 返回的单条条目（只保留需要的字段）。
      */
     private record ContentEntry(
             String name,
@@ -195,8 +184,6 @@ public final class SkillInstaller {
     ) {}
 
     /**
-     * 列出 GitHub 仓库指定路径下的条目。
-     * 目录返回数组，单文件返回包装成单元素列表。
      */
     private List<ContentEntry> listContents(SkillSource src, String subpath) throws IOException {
         String endpoint = "%s/repos/%s/%s/contents/%s?ref=%s".formatted(
@@ -233,7 +220,7 @@ public final class SkillInstaller {
             throw new IOException("github returned empty body");
         }
 
-        // 目录返回 JSON 数组，单文件返回 JSON 对象
+
         String trimmedBody = body.strip();
         if (trimmedBody.startsWith("[")) {
             return MAPPER.readValue(body, new TypeReference<>() {});
@@ -243,8 +230,6 @@ public final class SkillInstaller {
     }
 
     /**
-     * 下载单个文件的内容。
-     * 优先使用内联 base64（省一次请求），回退到 download_url。
      */
     private byte[] fetchBlob(ContentEntry entry) throws IOException {
         if (entry.size() > MAX_FILE_SIZE) {
@@ -252,13 +237,13 @@ public final class SkillInstaller {
                     entry.path(), entry.size(), MAX_FILE_SIZE));
         }
 
-        // 内联 base64（小文件时 API 直接返回内容）
+
         if ("base64".equals(entry.encoding()) && entry.content() != null && !entry.content().isEmpty()) {
             String clean = entry.content().replace("\n", "");
             return Base64.getDecoder().decode(clean);
         }
 
-        // 回退到 download_url
+
         if (entry.download_url() == null || entry.download_url().isEmpty()) {
             throw new IOException("no download_url for " + entry.path());
         }
@@ -284,11 +269,9 @@ public final class SkillInstaller {
         return resp.body();
     }
 
-    // ── 递归下载 ──────────────────────────────────────────────────────
+
 
     /**
-     * 递归遍历 GitHub 目录树，下载所有文件到 localDir，
-     * 同时检查安全限制（文件数、总大小、深度）。
      */
     private void walkAndDownload(
             SkillSource src, String subpath, Path localDir,
@@ -304,7 +287,7 @@ public final class SkillInstaller {
                 throw new IOException("install file count limit (%d) reached".formatted(MAX_FILE_COUNT));
             }
 
-            // 防止路径穿越
+
             if (entry.name().contains("..") || entry.name().contains("/") || entry.name().contains("\\")) {
                 throw new IOException("suspicious entry name: \"%s\"".formatted(entry.name()));
             }
@@ -326,16 +309,15 @@ public final class SkillInstaller {
                     walkAndDownload(src, entry.path(), target, fileCount, totalBytes, depth + 1);
                 }
                 default -> {
-                    // symlink / submodule 直接跳过
+
                 }
             }
         }
     }
 
-    // ── 校验辅助 ──────────────────────────────────────────────────────
+
 
     /**
-     * 检查目录下是否有 SKILL.md 或 skill.yaml（合法 skill 的最低要求）。
      */
     private static boolean hasSkillManifest(Path dir) {
         return Files.isRegularFile(dir.resolve("SKILL.md"))
@@ -343,7 +325,6 @@ public final class SkillInstaller {
     }
 
     /**
-     * 校验 skill 名称：只允许小写字母、数字、连字符、下划线，不能以 . 开头。
      */
     static void validateSkillName(String name) {
         if (name == null || name.isEmpty()) {
@@ -363,7 +344,6 @@ public final class SkillInstaller {
     }
 
     /**
-     * 递归删除目录及其所有内容。
      */
     private static void deleteRecursively(Path dir) {
         if (!Files.exists(dir)) return;

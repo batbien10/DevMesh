@@ -70,11 +70,11 @@ public final class TeammateRunner {
         member.active = false;
         progress.setStatus("completed");
 
-        // 队友退出时持久化对话记录，用于调试
+
         try {
             Transcript.saveTranscript(team.getName(), member.getName(), member.conv);
         } catch (Exception ignored) {
-            // best-effort：持久化失败不影响正常退出
+
         }
     }
 
@@ -148,7 +148,7 @@ public final class TeammateRunner {
                 java.time.Instant.now().toString());
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────
+
 
     private record WaitResult(String prompt, boolean shutdown) {}
 

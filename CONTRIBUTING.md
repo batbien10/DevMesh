@@ -1,8 +1,8 @@
-# 参与 DevMesh 开发
+# Contributing to DevMesh
 
-感谢关注 DevMesh。提交修改前，请确保变更范围清晰、测试通过，并且没有包含 API Key、会话、运行轨迹或其他本地数据。
+Thanks for contributing to DevMesh. Before submitting changes, keep the scope clear, make sure tests pass, and do not include API keys, sessions, run traces, or other local data.
 
-## 本地验证
+## Local validation
 
 Windows：
 
@@ -10,30 +10,30 @@ Windows：
 .\gradlew.bat test shadowJar
 ```
 
-Linux 或 macOS：
+Linux or macOS:
 
 ```bash
 ./gradlew test shadowJar
 ```
 
-## 分支与提交
+## Branches and commits
 
-1. 从 `main` 创建功能分支。
-2. 只提交与当前功能相关的文件。
-3. 使用清晰的提交信息，例如 `feat: add trace policy` 或 `fix: preserve tool result order`。
-4. 提交前运行测试，并检查 `git diff --cached`。
+1. Create a feature branch from `main`.
+2. Commit only files related to the current feature.
+3. Use a clear commit message, such as `feat: add trace policy` or `fix: preserve tool result order`.
+4. Run tests and inspect `git diff --cached` before committing.
 
-## 安全检查
+## Security checks
 
-以下内容不得提交：
+Do not commit any of the following:
 
-- `.devmesh/config.yaml` 与任何真实 API Key
+- `.devmesh/config.yaml` and any real API key
 - `.devmesh/sessions`、`.devmesh/memory`、`.devmesh/traces`
-- 本地 IDE、Agent 或操作系统配置
-- 包含 prompt、工具输出、文件正文或凭据的调试日志
+- Local IDE, Agent, or operating-system configuration
+- Debug logs containing prompts, tool output, file contents, or credentials
 
-## 文档约定
+## Documentation conventions
 
-- 用户可见名称统一使用 `DevMesh`。
-- CLI、JAR、配置目录和环境变量分别使用 `devmesh`、`devmesh.jar`、`.devmesh` 和 `DEVMESH_*`。
-- 新增行为需要同步更新 README、相关架构文档和测试。
+- Use `DevMesh` consistently for user-facing names.
+- Use `devmesh`, `devmesh.jar`, `.devmesh`, and `DEVMESH_*` for the CLI, JAR, configuration directory, and environment variables respectively.
+- Update the README, relevant architecture docs, and tests when adding behavior.

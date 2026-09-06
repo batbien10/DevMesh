@@ -145,7 +145,7 @@ class ToolSearchTest {
     @Test
     void testGetDeferredToolNames() {
         // Initially both deferred tools should be in the deferred list
-        // (ToolSearch itself is NOT deferred — it must always be available)
+
         var deferred = registry.getDeferredToolNames();
         assertTrue(deferred.contains("WebFetch"));
         assertTrue(deferred.contains("Monitor"));

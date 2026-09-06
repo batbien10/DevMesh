@@ -20,7 +20,7 @@ public final class MemoryRecall {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // ── Selector system prompt ─────────────────────────────────────────
+
 
     public static final String SELECTOR_SYSTEM_PROMPT = """
             You are selecting memories that will be useful to DevMesh as it processes a user's query. \
@@ -40,7 +40,7 @@ public final class MemoryRecall {
             Respond with valid JSON only, no markdown, in this exact shape: \
             {"selected_memories": ["filename1.md", "filename2.md"]}""";
 
-    // ── Result record ──────────────────────────────────────────────────
+
 
     /**
      * One memory file selected for surfacing into the main conversation.
@@ -49,7 +49,7 @@ public final class MemoryRecall {
      */
     public record RelevantMemory(String path, long mtimeMs) {}
 
-    // ── Selector function interface ────────────────────────────────────
+
 
     /**
      * Abstraction for the side-query LLM call used by the recall selector.
@@ -62,7 +62,7 @@ public final class MemoryRecall {
         String select(String systemPrompt, String userMessage) throws Exception;
     }
 
-    // ── Main entry point ───────────────────────────────────────────────
+
 
     /**
      * Scans both directories, filters already-surfaced paths, asks the
@@ -125,7 +125,7 @@ public final class MemoryRecall {
         return result;
     }
 
-    // ── Selector logic ─────────────────────────────────────────────────
+
 
     private static List<String> selectRelevantMemories(
             String query,
@@ -191,7 +191,7 @@ public final class MemoryRecall {
         return trimmed.substring(start, end + 1);
     }
 
-    // ── Reminder rendering ─────────────────────────────────────────────
+
 
     /**
      * Reads each selected memory file's full content and formats a single

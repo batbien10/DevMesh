@@ -9,15 +9,11 @@ import java.util.Set;
  * Per-conversation-thread decision log for tool-result budgeting.
  *
  * <ul>
- *   <li>{@code seenIds} — every {@code tool_use_id} that has passed through
  *       {@link ToolResultBudget#apply} at least once. Once present, the
  *       decision (replaced or not) is frozen forever for that id.</li>
- *   <li>{@code replacements} — the byte-exact preview string for every id
  *       that was decided "replace". Subsequent turns re-apply this string
- *       verbatim — no filesystem I/O, no chance of drift.</li>
  * </ul>
  *
- * <p>Invariant: {@code keys(replacements) ⊆ seenIds}.
  */
 public final class ContentReplacementState {
 

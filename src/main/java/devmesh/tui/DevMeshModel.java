@@ -65,7 +65,7 @@ public class DevMeshModel implements Model {
 
     private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
 
-    // ── Provider selection ───────────────────────────────────────────────
+
     private final List<ProviderConfig> providers;
     private final List<McpServerConfig> mcpServers;
     private final List<HookConfig> hookConfigs;
@@ -74,7 +74,7 @@ public class DevMeshModel implements Model {
     private int providerCursor;
     private ProviderConfig selectedProvider;
 
-    // ── Core state ──────────────────────────────────────────────────────
+
     private AppState state;
     private LlmClient client;
     private ConversationManager conversation;
@@ -82,7 +82,7 @@ public class DevMeshModel implements Model {
     private ToolRegistry registry;
     private PermissionChecker permChecker;
 
-    // ── Chat display ────────────────────────────────────────────────────
+
     private final List<ChatMessage> chatMessages;
     private final StringBuilder streamBuf;
     private final StringBuilder inputBuffer;
@@ -90,13 +90,13 @@ public class DevMeshModel implements Model {
     private boolean streaming;
     private boolean userHasSentMessage;
 
-    // ── Scrollback commit ──────────────────────────────────────────────
-    // chatMessages[0..committedUpTo) 已通过 Command.println 输出到终端 scrollback，
-    // viewChat() 只渲染 [committedUpTo..end) 的未提交内容
+
+
+
     private int committedUpTo;
     private boolean bannerPrinted;
 
-    // ── Streaming infrastructure ─────────────────────────────────────────
+
     private BlockingQueue<AgentEvent> agentQueue;
     private CompletableFuture<PermissionResponse> pendingPermission;
     private boolean permDialog;
@@ -105,7 +105,7 @@ public class DevMeshModel implements Model {
     private int permCursor;
     private Program program;
 
-    // ── Rewind dialog ───────────────────────────────────────────────────
+
     private boolean rewindDialog;
     private int rewindPhase;       // 0=snapshot list, 1=restore options
     private int rewindCursor;
@@ -120,12 +120,12 @@ public class DevMeshModel implements Model {
             "Never mind"
     };
 
-    // ── AskUser dialog ──────────────────────────────────────────────────
+
     private final devmesh.tui.dialog.AskUserDialog askUserDialogState = new devmesh.tui.dialog.AskUserDialog();
     private CompletableFuture<Map<String, String>> askUserFuture;
     private AskUserTool askUserTool;
 
-    // ── Advanced features ─────────────────────────────────────────────
+
     private McpManager mcpManager;
     private SkillCatalog skillCatalog;
     private TaskList taskList;
@@ -133,85 +133,84 @@ public class DevMeshModel implements Model {
     private String instructionsContent = "";
     private String memoryContentField = "";
 
-    // ── Slash menu ────────────────────────────────────────────────────
+
     private CommandRegistry cmdRegistry;
     private boolean slashMenuOpen;
     private List<devmesh.command.Command> slashMatches = new ArrayList<>();
     private int slashCursor;
 
-    // ── Command history ─────────────────────────────────────────────────
+
     private final HistoryStore historyStore = new HistoryStore();
     private int historyIndex = -1;
     private String historyDraft = "";
 
-    // ── @ file menu ──────────────────────────────────────────────────
+
     private boolean atMenuOpen;
     private List<String> atMatches = new ArrayList<>();
 
     private int atCursor;
 
-    // ── Resume ──────────────────────────────────────────────────────────
+
     private List<devmesh.session.SessionManager.SessionInfo> resumeSessions = new ArrayList<>();
     private List<devmesh.session.SessionManager.SessionInfo> resumeFiltered = new ArrayList<>();
     private int resumeCursor;
     private String resumeSearch = "";
 
-    // ── Session tracking ────────────────────────────────────────────────
+
     private String sessionId;
 
-    // ── Plan mode ────────────────────────────────────────────────────
+
     private PermissionMode prePlanMode = PermissionMode.DEFAULT;
     private final PlanApprovalDialog planApprovalDialog = new PlanApprovalDialog();
-    /** 标记本次会话中是否曾退出过 plan mode，用于再次进入时注入 reentry reminder */
     private boolean hasExitedPlanMode;
 
-    // ── Tool blocks (accumulated during a turn, archived on TurnComplete) ──
+
     private final List<ChatMessage.ToolBlockInfo> toolBlocks = new ArrayList<>();
     private ChatMessage.SubAgentBlockState activeSubAgent;
 
-    // ── Sub-agent infrastructure ────────────────────────────────────────
+
     private SubAgentTaskManager subAgentTaskManager;
     private AgentTool agentToolRef;
 
-    // ── Team infrastructure ────────────────────────────────────────────
+
     private final devmesh.teams.TeamManager teamManager = new devmesh.teams.TeamManager();
     private final ConcurrentLinkedQueue<SubAgentProgress> subAgentProgressQueue = new ConcurrentLinkedQueue<>();
 
-    // ── Sandbox ─────────────────────────────────────────────────────────
+
     private devmesh.sandbox.Sandbox sandboxInstance;
     private devmesh.sandbox.SandboxConfig sandboxConfig;
 
-    // ── MCP status ──────────────────────────────────────────────────────
+
     private volatile boolean mcpConnecting;
     private boolean pendingSingleProviderInit;
     private volatile String mcpInstructions = "";
     private volatile boolean mcpInstructionsOk;
     private volatile String mcpServerInfo = "";
 
-    // ── Ready gate (等待首次 WindowSizeMessage 后再渲染) ──────────────
+
     private boolean ready;
 
-    // ── Scroll tracking ─────────────────────────────────────────────────
+
     private int scrollOffset;
     private boolean userScrolled;
     private int totalContentLines;
 
-    // ── Spinner ─────────────────────────────────────────────────────────
+
     private static final String[] SPINNER_FRAMES = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     private int spinnerFrame = 0;
 
     private String thinkingVerb = "";
     private long thinkingStartMs;
 
-    // ── Layout ──────────────────────────────────────────────────────────
+
     private int width;
     private int height;
 
-    // ── Token counters ──────────────────────────────────────────────────
+
     private int totalInput;
     private int totalOutput;
 
-    // ── Custom message for agent events ─────────────────────────────────
+
     public record AgentEventMessage() implements Message {}
     public record MailboxPollMessage() implements Message {}
 
@@ -238,13 +237,13 @@ public class DevMeshModel implements Model {
         this.width = 80;
         this.height = 24;
 
-        // 初始化 hook 引擎，将 YAML 配置转换为内部 Hook 对象
+
         this.hookEngine = new HookEngine();
         if (!this.hookConfigs.isEmpty()) {
             List<HookEngine.Hook> hooks = this.hookConfigs.stream().map(hc -> {
                 HookEngine.EventName event = parseEventName(hc.getEvent());
                 HookEngine.ActionType actionType = parseActionType(hc.getType());
-                // 构建 Action：支持 command/prompt/http/agent 的全部字段
+
                 Duration timeout = hc.getTimeout() > 0
                         ? Duration.ofSeconds(hc.getTimeout()) : Duration.ZERO;
                 var action = new HookEngine.Action(actionType, hc.getCommand(), hc.getMessage(),
@@ -252,7 +251,7 @@ public class DevMeshModel implements Model {
                 return new HookEngine.Hook(hc.getId(), event, hc.getCondition(), action,
                         hc.isReject(), hc.isOnce(), hc.isAsync(), hc.getOnError());
             }).toList();
-            // 加载前做配置校验，提前暴露错误
+
             List<String> errors = HookEngine.validate(hooks);
             if (!errors.isEmpty()) {
                 System.err.println("[hook] config validation errors:");
@@ -314,9 +313,9 @@ public class DevMeshModel implements Model {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Model interface
-    // ────────────────────────────────────────────────────────────────────
+
 
     @Override
     public Command init() {
@@ -330,12 +329,12 @@ public class DevMeshModel implements Model {
             initializeProvider();
         }
 
-        // ── Window resize ───────────────────────────────────────────────
+
         if (msg instanceof WindowSizeMessage wsm) {
             this.width = wsm.width();
             this.height = wsm.height();
             ready = true;
-            // 首次获取窗口大小时，将 banner 输出到 scrollback
+
             if (!bannerPrinted && state == AppState.CHAT) {
                 bannerPrinted = true;
                 return UpdateResult.from(this, Command.println(renderBanner() + "\n"));
@@ -343,7 +342,7 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this);
         }
 
-        // ── Ctrl+C / QuitMessage: interrupt streaming or quit ──────────
+
         if (msg instanceof QuitMessage) {
             if (streaming) {
                 savePartialResponse();
@@ -358,7 +357,7 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this, QuitMessage::new);
         }
 
-        // ── Mouse events ────────────────────────────────────────────────
+
         if (msg instanceof MouseMessage mm) {
             var btn = mm.getButton();
             if (btn == MouseMessage.MouseButton.MouseButtonWheelUp) {
@@ -371,7 +370,7 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this);
         }
 
-        // ── Agent streaming events ──────────────────────────────────────
+
         if (msg instanceof AgentEventMessage) {
             if (streaming) spinnerFrame++;
             return handleAgentEvents();
@@ -408,27 +407,27 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this, pollCmd);
         }
 
-        // ── Permission dialog ────────────────────────────────────────────
+
         if (msg instanceof KeyPressMessage kpm && permDialog) {
             return handlePermDialogKey(kpm);
         }
 
-        // ── Rewind dialog ────────────────────────────────────────────────
+
         if (msg instanceof KeyPressMessage kpm && rewindDialog) {
             return handleRewindKey(kpm);
         }
 
-        // ── Plan approval dialog ────────────────────────────────────────
+
         if (msg instanceof KeyPressMessage kpm && planApprovalDialog.isActive()) {
             return handlePlanApprovalKey(kpm);
         }
 
-        // ── AskUser dialog ──────────────────────────────────────────────
+
         if (msg instanceof KeyPressMessage kpm && askUserDialogState.isActive()) {
             return handleAskUserDialogKey(kpm);
         }
 
-        // ── Dispatch to state-specific handler ──────────────────────────
+
         if (msg instanceof KeyPressMessage kpm) {
             return switch (state) {
                 case PROVIDER_SELECT -> handleProviderSelectKey(kpm);
@@ -450,9 +449,9 @@ public class DevMeshModel implements Model {
         };
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Provider selection
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleProviderSelectKey(KeyPressMessage kpm) {
         String key = kpm.key();
@@ -533,16 +532,16 @@ public class DevMeshModel implements Model {
             permChecker = new PermissionChecker(
                     PermissionMode.DEFAULT, Path.of(workDir));
 
-            // 初始化 OS 级沙箱
+
             sandboxInstance = devmesh.sandbox.SandboxFactory.create();
             if (sandboxInstance != null && sandboxInstance.isAvailable()) {
-                // 默认沙箱配置：允许写入项目目录和 /tmp，禁止写入敏感配置路径
+
                 sandboxConfig = new devmesh.sandbox.SandboxConfig(
                         java.util.List.of(workDir, "/tmp"),
                         permChecker.getDenyWrite(),
                         true
                 );
-                // 将沙箱注入 BashTool
+
                 for (var t : registry.listTools()) {
                     if (t instanceof devmesh.tool.impl.BashTool bt) {
                         bt.setSandbox(sandboxInstance);
@@ -552,7 +551,7 @@ public class DevMeshModel implements Model {
             }
 
             sessionId = devmesh.session.SessionManager.newId();
-            // 启动时清理超过 30 天的过期 session 文件
+
             devmesh.session.SessionManager.cleanExpiredSessions(workDir);
             fileHistory = new devmesh.filehistory.FileHistory(workDir, sessionId);
             var fileStateCache = new devmesh.tool.FileStateCache();
@@ -641,7 +640,7 @@ public class DevMeshModel implements Model {
 
             skillCatalog = SkillCatalog.loadCatalog(workDir);
 
-            // InstallSkill 工具：从 URL 下载并安装 skill
+
             var installSkillTool = new devmesh.tool.impl.InstallSkillTool();
             installSkillTool.setCatalog(skillCatalog);
             installSkillTool.setOnInstalled(name -> {
@@ -730,8 +729,6 @@ public class DevMeshModel implements Model {
             java.util.regex.Pattern.compile("\033\\[[0-9;]*[a-zA-Z]|\033][^\007\033]*(?:\007|\033\\\\)");
 
     /**
-     * 按物理行数从末尾裁剪文本（考虑终端宽度换行），
-     * 防止 view 超过终端高度导致 clearView 无法擦除滚入 scrollback 的旧内容。
      */
     private static String clipToPhysicalLines(String text, int maxPhysical, int cols) {
         if (cols <= 0) cols = 80;
@@ -787,9 +784,9 @@ public class DevMeshModel implements Model {
         return sb.toString();
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Chat
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleChatKey(KeyPressMessage kpm) {
         String key = kpm.key();
@@ -804,7 +801,7 @@ public class DevMeshModel implements Model {
                 case BYPASS -> PermissionMode.DEFAULT;
             };
             permChecker.setMode(next);
-            // Status bar already shows the mode — no need for a chat message
+
             return UpdateResult.from(this);
         }
 
@@ -1003,7 +1000,7 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this);
         }
 
-        // 光标移动
+
         if (key.equals("left")) {
             if (inputCursor > 0) inputCursor--;
             return UpdateResult.from(this);
@@ -1045,7 +1042,7 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this);
         }
 
-        // Regular character input — use runes() for Unicode support (Chinese, etc.)
+
         char[] runes = kpm.runes();
         if (runes != null && runes.length > 0) {
             for (char ch : runes) {
@@ -1140,7 +1137,7 @@ public class DevMeshModel implements Model {
                         chatMessages.clear();
                         committedUpTo = 0;
                         conversation = new ConversationManager();
-                        // 开启全新会话：重置 session ID 及关联的持久化存储
+
                         var wd = System.getProperty("user.dir");
                         sessionId = devmesh.session.SessionManager.newId();
                         fileHistory = new devmesh.filehistory.FileHistory(wd, sessionId);
@@ -1158,7 +1155,7 @@ public class DevMeshModel implements Model {
                         taskList = new TaskList("default", wd);
                         totalInput = 0;
                         totalOutput = 0;
-                        // 清屏 + 重新打印 banner
+
                         yield UpdateResult.from(this,
                                 Command.println("\033[2J\033[3J\033[H" + renderBanner() + "\n"));
                     }
@@ -1187,7 +1184,7 @@ public class DevMeshModel implements Model {
                             chatMessages.add(new ChatMessage("system",
                                     "Entered Plan mode. Plan file: %s\nExplore the codebase and design your approach."
                                             .formatted(planPath)));
-                            // 曾退出过 plan mode 且 plan 文件存在 → 注入 reentry reminder
+
                             if (hasExitedPlanMode && PlanFile.planExists()) {
                                 String reentryReminder = PlanModePrompt.buildReentryReminder(planPath);
                                 conversation.addSystemReminder(reentryReminder);
@@ -1292,15 +1289,14 @@ public class DevMeshModel implements Model {
         );
     }
 
-    /** 返回当前沙箱状态的文本描述 */
     private String getSandboxStatus() {
         if (sandboxInstance == null || !sandboxInstance.isAvailable()) {
-            return "不可用（当前平台不支持或沙箱工具未安装）";
+            return "Unavailable (the current platform is unsupported or the sandbox tool is not installed)";
         }
         if (permChecker != null && permChecker.isSandboxEnabled()) {
-            return "已开启（沙箱 + 自动放行）";
+            return "Enabled (sandbox + auto-allow)";
         }
-        // 沙箱工具可用但未开启自动放行
+
         boolean bashHasSandbox = false;
         for (var t : registry.listTools()) {
             if (t instanceof devmesh.tool.impl.BashTool bt) {
@@ -1308,12 +1304,10 @@ public class DevMeshModel implements Model {
                 break;
             }
         }
-        return bashHasSandbox ? "已开启（沙箱 + 常规权限）" : "已关闭";
+        return bashHasSandbox ? "Enabled (sandbox + standard permissions)" : "Disabled";
     }
 
     /**
-     * 切换沙箱模式。
-     * mode=1: 沙箱 + 自动放行  mode=2: 沙箱 + 常规权限  mode=3: 关闭沙箱
      */
     private void switchSandboxMode(int mode) {
         if (sandboxInstance == null || !sandboxInstance.isAvailable()) return;
@@ -1321,7 +1315,7 @@ public class DevMeshModel implements Model {
 
         switch (mode) {
             case 1 -> {
-                // 开启沙箱 + 自动放行
+
                 sandboxConfig = new devmesh.sandbox.SandboxConfig(
                         java.util.List.of(workDir, "/tmp"),
                         permChecker != null ? permChecker.getDenyWrite() : java.util.List.of(),
@@ -1336,7 +1330,7 @@ public class DevMeshModel implements Model {
                 if (permChecker != null) permChecker.setSandboxEnabled(true);
             }
             case 2 -> {
-                // 开启沙箱 + 常规权限（不自动放行）
+
                 sandboxConfig = new devmesh.sandbox.SandboxConfig(
                         java.util.List.of(workDir, "/tmp"),
                         permChecker != null ? permChecker.getDenyWrite() : java.util.List.of(),
@@ -1351,7 +1345,7 @@ public class DevMeshModel implements Model {
                 if (permChecker != null) permChecker.setSandboxEnabled(false);
             }
             case 3 -> {
-                // 关闭沙箱
+
                 for (var t : registry.listTools()) {
                     if (t instanceof devmesh.tool.impl.BashTool bt) {
                         bt.setSandbox(null);
@@ -1380,7 +1374,7 @@ public class DevMeshModel implements Model {
         }
 
         chatMessages.add(new ChatMessage("user", userText));
-        // 用户消息立即提交到 scrollback
+
         String userLine = Styles.prompt.render("❯ ") + Styles.userText.render(userText) + "\n";
         committedUpTo = chatMessages.size();
 
@@ -1395,7 +1389,7 @@ public class DevMeshModel implements Model {
             mcpInstructionsOk = true;
         }
 
-        // Start memory recall prefetch — runs in a virtual thread with 8s timeout.
+
         var prefetchFuture = prefetchRelevantMemories(userText);
 
         if (agent == null) {
@@ -1410,13 +1404,13 @@ public class DevMeshModel implements Model {
 
         fireHook(HookEngine.EventName.TURN_START, null, null);
 
-        // 预先创建 queue 并立即开始轮询，避免 TUI 卡住
+
         var queue = new java.util.concurrent.LinkedBlockingQueue<devmesh.agent.AgentEvent>(64);
         agentQueue = queue;
         if (askUserTool != null) askUserTool.setEventQueue(queue);
 
-        // 非阻塞 memory recall：prefetch future 传给 agent，工具执行后注入
-        // 不再同步等 3 秒——与 Claude Code 一致
+
+
         agent.setMemoryRecallFuture(prefetchFuture);
 
         Thread.startVirtualThread(() -> {
@@ -1432,9 +1426,9 @@ public class DevMeshModel implements Model {
         return UpdateResult.from(this, Command.batch(Command.println(userLine), pollCmd));
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Streaming event processing
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleAgentEvents() {
         drainSubAgentProgress();
@@ -1445,7 +1439,7 @@ public class DevMeshModel implements Model {
         agentQueue.drainTo(events);
 
         boolean loopDone = false;
-        // 收集本轮需要 commit 到 scrollback 的内容
+
         boolean needsCommit = false;
 
         for (var event : events) {
@@ -1512,7 +1506,7 @@ public class DevMeshModel implements Model {
                     totalOutput = e.outputTokens();
                 }
                 case AgentEvent.ErrorEvent e -> {
-                    // 保留错误前已输出的流式文本
+
                     if (!streamBuf.isEmpty()) {
                         chatMessages.add(new ChatMessage("assistant", streamBuf.toString()));
                         streamBuf.setLength(0);
@@ -1545,7 +1539,7 @@ public class DevMeshModel implements Model {
             scrollOffset = 0;
         }
 
-        // LoopComplete 或有工具/错误完成 → 提交到 scrollback
+
         if (loopDone || needsCommit) {
             String commitText = renderMessagesRange(committedUpTo, chatMessages.size());
             committedUpTo = chatMessages.size();
@@ -1565,7 +1559,7 @@ public class DevMeshModel implements Model {
                 }
                 return printCmd != null ? UpdateResult.from(this, printCmd) : UpdateResult.from(this);
             }
-            // 工具/错误完成但未结束循环 → commit + 继续轮询
+
             Command pollCmd = Command.tick(POLL_INTERVAL, t -> new AgentEventMessage());
             return UpdateResult.from(this, printCmd != null ? Command.batch(printCmd, pollCmd) : pollCmd);
         }
@@ -1597,9 +1591,9 @@ public class DevMeshModel implements Model {
         Thread.startVirtualThread(() -> memoryManager.extract(client, conversation));
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Memory recall prefetch
-    // ────────────────────────────────────────────────────────────────────
+
 
     /**
      * Runs the recall selector in a virtual thread and returns a future
@@ -1654,7 +1648,6 @@ public class DevMeshModel implements Model {
      * Waits up to 3 seconds for the prefetch future to produce a rendered
      * reminder, then injects it as a system-reminder on the given
      * conversation. If the timeout fires first, the prefetch keeps running
-     * but its result is dropped — recall is best-effort and must not stall
      * the user's main request.
      */
     private static void collectPrefetchedRecall(
@@ -1666,13 +1659,13 @@ public class DevMeshModel implements Model {
                 conv.addSystemReminder(reminder);
             }
         } catch (Exception ignored) {
-            // Timeout or error — recall is best-effort, don't block the user.
+
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Tool block management
-    // ────────────────────────────────────────────────────────────────────
+
 
     private static final Set<String> COLLAPSIBLE_TOOLS = Set.of(
             "ReadFile", "Glob", "Grep", "ToolSearch");
@@ -1682,8 +1675,6 @@ public class DevMeshModel implements Model {
     }
 
     /**
-     * 实时归档已完成的工具块，保留仍在 loading 的。
-     * 在 ToolResultEvent 后调用，让完成的工具立刻出现在聊天历史中。
      */
     private void commitCompletedToolBlocks() {
         var remaining = new ArrayList<ChatMessage.ToolBlockInfo>();
@@ -1827,9 +1818,9 @@ public class DevMeshModel implements Model {
         return Styles.toolDone.render("  ✓ %s (%.1fs)".formatted(title, tb.elapsed()));
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    // Scrollback commit — 渲染 chatMessages[from..to) 为终端 scrollback 文本
-    // ────────────────────────────────────────────────────────────────────
+
+
+
 
     @Override
     public String dumpHistory() {
@@ -1872,7 +1863,7 @@ public class DevMeshModel implements Model {
                     sb.append("\n");
                 }
                 case "tool_collapsed" -> {
-                    // scrollback 里始终展开每个工具
+
                     if (msg.toolGroup != null) {
                         for (var tb : msg.toolGroup) {
                             sb.append("  ");
@@ -1914,9 +1905,9 @@ public class DevMeshModel implements Model {
         return sb.toString();
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Sub-agent display
-    // ────────────────────────────────────────────────────────────────────
+
 
     private void handleSubAgentProgress(SubAgentProgress progress) {
         subAgentProgressQueue.add(progress);
@@ -1994,9 +1985,9 @@ public class DevMeshModel implements Model {
         return sb.toString();
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Teammate spinner tree
-    // ────────────────────────────────────────────────────────────────────
+
 
     private String renderTeammateTree() {
         var progressList = teamManager.getAllTeammateProgress();
@@ -2036,9 +2027,9 @@ public class DevMeshModel implements Model {
         return sb.toString();
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Plan approval
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handlePlanApprovalKey(KeyPressMessage kpm) {
         var result = planApprovalDialog.handleKey(kpm.key());
@@ -2049,7 +2040,7 @@ public class DevMeshModel implements Model {
                 if (permChecker != null) permChecker.setMode(PermissionMode.BYPASS);
                 chatMessages.add(new ChatMessage("system",
                         "Plan approved. Entered YOLO mode (all operations auto-approved)."));
-                // 退出 plan mode，注入 exit reminder 并标记已退出
+
                 String exitPath = PlanFile.getOrCreatePlanPath(System.getProperty("user.dir"));
                 String exitReminder = PlanModePrompt.buildExitReminder(exitPath, PlanFile.planExists());
                 conversation.addSystemReminder(exitReminder);
@@ -2063,7 +2054,7 @@ public class DevMeshModel implements Model {
                 }
                 chatMessages.add(new ChatMessage("system",
                         "Plan approved. Each edit will require your confirmation."));
-                // 退出 plan mode，注入 exit reminder 并标记已退出
+
                 String exitPath = PlanFile.getOrCreatePlanPath(System.getProperty("user.dir"));
                 String exitReminder = PlanModePrompt.buildExitReminder(exitPath, PlanFile.planExists());
                 conversation.addSystemReminder(exitReminder);
@@ -2081,9 +2072,9 @@ public class DevMeshModel implements Model {
         return UpdateResult.from(this);
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Task notifications
-    // ────────────────────────────────────────────────────────────────────
+
 
     private void drainTaskNotifications() {
         if (subAgentTaskManager == null) return;
@@ -2124,9 +2115,9 @@ public class DevMeshModel implements Model {
         };
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Resume screen
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleResumeKey(KeyPressMessage kpm) {
         String key = kpm.key();
@@ -2176,7 +2167,7 @@ public class DevMeshModel implements Model {
                     }
                 }
                 state = AppState.CHAT;
-                // 恢复的会话全部提交到 scrollback
+
                 String commitText = renderMessagesRange(0, chatMessages.size());
                 committedUpTo = chatMessages.size();
                 yield !commitText.isEmpty()
@@ -2253,9 +2244,9 @@ public class DevMeshModel implements Model {
         return sb.toString();
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Permission dialog
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handlePermDialogKey(KeyPressMessage kpm) {
         String key = kpm.key();
@@ -2283,9 +2274,9 @@ public class DevMeshModel implements Model {
         };
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Rewind dialog
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleRewindKey(KeyPressMessage kpm) {
         String key = kpm.key();
@@ -2342,9 +2333,9 @@ public class DevMeshModel implements Model {
         return UpdateResult.from(this);
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // AskUser dialog
-    // ────────────────────────────────────────────────────────────────────
+
 
     private UpdateResult<DevMeshModel> handleAskUserDialogKey(KeyPressMessage kpm) {
         var result = askUserDialogState.handleKey(kpm.key());
@@ -2357,9 +2348,9 @@ public class DevMeshModel implements Model {
         return UpdateResult.from(this);
     }
 
-    // ────────────────────────────────────────────────────────────────────
+
     // Chat view rendering
-    // ────────────────────────────────────────────────────────────────────
+
 
     private String viewChat() {
         var sb = new StringBuilder();
@@ -2368,7 +2359,7 @@ public class DevMeshModel implements Model {
             sb.append("\n\n");
         }
 
-        // ── Messages（只渲染未提交到 scrollback 的部分）────────────────
+
         for (int idx = committedUpTo; idx < chatMessages.size(); idx++) {
             var msg = chatMessages.get(idx);
             switch (msg.role) {
@@ -2459,7 +2450,7 @@ public class DevMeshModel implements Model {
             }
         }
 
-        // ── Active tool blocks (in progress) ────────────────────────────
+
         for (var tb : toolBlocks) {
             if ("Agent".equals(tb.toolName()) && activeSubAgent != null) {
                 continue;
@@ -2468,31 +2459,31 @@ public class DevMeshModel implements Model {
             sb.append("\n");
         }
 
-        // ── Active sub-agent (in progress) ──────────────────────────────
+
         if (activeSubAgent != null && !activeSubAgent.done) {
             sb.append(renderSubAgentBlock(activeSubAgent, false));
         }
 
-        // ── Streaming buffer (in-progress text) ─────────────────────────
+
         if (streaming && !streamBuf.isEmpty()) {
             sb.append(Styles.aiMarker.render("● "));
-            // 按物理行数裁剪，防止 view 超过终端高度导致 scrollback 重复
+
             String clipped = clipToPhysicalLines(streamBuf.toString(), Math.max(5, height - 12), width);
             sb.append(Styles.streamingText.render(clipped));
             sb.append("\n");
         }
 
-        // ── Persistent spinner (runs until LoopComplete) ─────────────────
+
         if (streaming) {
             double elapsed = (System.currentTimeMillis() - thinkingStartMs) / 1000.0;
             String frame = SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length];
             sb.append(Styles.thinking.render("  %s %s…  (%.0fs)".formatted(frame, thinkingVerb, elapsed)));
             sb.append("\n");
-            // ── Teammate spinner tree (shown below lead spinner) ──────
+
             sb.append(renderTeammateTree());
         }
 
-        // ── Permission dialog overlay ────────────────────────────────────
+
         if (permDialog) {
             sb.append(Styles.permBorder.render("  %s command".formatted(permToolName)));
             sb.append("\n\n");
@@ -2514,7 +2505,7 @@ public class DevMeshModel implements Model {
             sb.append("\n");
         }
 
-        // ── Rewind dialog overlay ────────────────────────────────────────
+
         if (rewindDialog && rewindSnapshots != null) {
             sb.append("\n");
             sb.append(Styles.selectedItem.render("  ⟲ Rewind to checkpoint"));
@@ -2557,19 +2548,19 @@ public class DevMeshModel implements Model {
             sb.append("\n");
         }
 
-        // ── AskUser dialog overlay ───────────────────────────────────────
+
         if (askUserDialogState.isActive()) {
             sb.append("\n");
             sb.append(askUserDialogState.render(width));
         }
 
-        // ── Plan approval dialog overlay ─────────────────────────────────
+
         if (planApprovalDialog.isActive()) {
             sb.append("\n");
             sb.append(planApprovalDialog.render());
         }
 
-        // ── Apply line-level viewport ───────────────────────────────────
+
         {
             String contentStr = sb.toString();
             sb.setLength(0);
@@ -2600,12 +2591,12 @@ public class DevMeshModel implements Model {
             }
         }
 
-        // ── Separator ───────────────────────────────────────────────────
+
         String sep = "─".repeat(Math.max(width - 2, 20));
         sb.append(Styles.separator.render(sep));
         sb.append("\n");
 
-        // ── Input area ──────────────────────────────────────────────────
+
         if (streaming) {
             // Input disabled during streaming; spinner is in chat content above
         } else {
@@ -2614,7 +2605,7 @@ public class DevMeshModel implements Model {
                 sb.append(Styles.placeholder.render("Send a message..."));
                 sb.append("\n");
             } else {
-                // 在 inputCursor 位置插入光标 █
+
                 String before = inputBuffer.substring(0, inputCursor);
                 String after = inputBuffer.substring(inputCursor);
                 String withCursor = before + "█" + after;
@@ -2632,11 +2623,11 @@ public class DevMeshModel implements Model {
         }
         if (streaming) sb.append("\n");
 
-        // ── Separator ────────────────────────────────────────────────────
+
         sb.append(Styles.separator.render("─".repeat(Math.max(width, 20))));
         sb.append("\n");
 
-        // ── Slash menu (below separator, above status bar) ──────────────
+
         if (slashMenuOpen && !slashMatches.isEmpty()) {
             for (int i = 0; i < slashMatches.size() && i < 8; i++) {
                 var cmdItem = slashMatches.get(i);
@@ -2651,7 +2642,7 @@ public class DevMeshModel implements Model {
             }
         }
 
-        // ── @ file menu ─────────────────────────────────────────────────
+
         if (atMenuOpen && !atMatches.isEmpty()) {
             for (int i = 0; i < atMatches.size() && i < 8; i++) {
                 String marker = i == atCursor ? " ❯ " : "   ";
@@ -2715,7 +2706,7 @@ public class DevMeshModel implements Model {
         sb.append(rightParts);
         sb.append("\n");
 
-        // ── 硬性高度保护：不超过 Program 报告的可用行数，防止内容溢出到 scrollback ──
+
         String result = sb.toString();
         String[] allLines = result.split("\n", -1);
         int total = allLines.length;

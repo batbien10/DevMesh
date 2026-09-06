@@ -16,7 +16,7 @@ public class BashTool implements Tool {
 
     private static final int MAX_TIMEOUT = 600;
 
-    // 特殊命令 exit code 1 的语义提示（grep 没匹配到、diff 文件有差异等）
+
     private static final Map<String, String> EXIT_ONE_HINTS = Map.of(
             "grep", "no matches found",
             "egrep", "no matches found",
@@ -28,10 +28,10 @@ public class BashTool implements Tool {
             "[", "condition is false"
     );
 
-    // 工作目录
+
     private String workDir;
 
-    // OS 级沙箱：包装命令在隔离环境中执行
+
     private Sandbox sandbox;
     private SandboxConfig sandboxConfig;
 
@@ -43,7 +43,6 @@ public class BashTool implements Tool {
         this.workDir = workDir;
     }
 
-    /** 设置 OS 级沙箱，命令执行前会通过沙箱包装 */
     public void setSandbox(Sandbox sandbox) { this.sandbox = sandbox; }
     public void setSandboxConfig(SandboxConfig config) { this.sandboxConfig = config; }
 
@@ -115,24 +114,24 @@ public class BashTool implements Tool {
         }
 
         try {
-            // 如果沙箱可用，将命令包装在沙箱中执行
+
             String actualCommand = command;
             if (sandbox != null && sandbox.isAvailable() && sandboxConfig != null) {
                 actualCommand = sandbox.wrap(command, sandboxConfig);
             }
 
             ProcessBuilder pb = new ProcessBuilder("bash", "-c", actualCommand);
-            // 合并 stdout 和 stderr 到同一个流，与 Claude Code 行为一致
+
             pb.redirectErrorStream(true);
 
-            // 设置工作目录
+
             if (workDir != null && !workDir.isEmpty()) {
                 pb.directory(new java.io.File(workDir));
             }
 
             Process process = pb.start();
 
-            // 合并流后只需读取 getInputStream()
+
             String output;
             try (InputStream stream = process.getInputStream()) {
                 output = new String(stream.readAllBytes());
@@ -154,10 +153,10 @@ public class BashTool implements Tool {
                 }
             }
 
-            // 非零 exit code 时附加退出码信息，但不设置 isError
+
             if (exitCode != 0) {
                 sb.append("Exit code ").append(exitCode);
-                // 对特殊命令附加语义提示
+
                 String hint = getExitCodeHint(command, exitCode);
                 if (hint != null) {
                     sb.append(" (").append(hint).append(")");
@@ -165,7 +164,7 @@ public class BashTool implements Tool {
                 sb.append('\n');
             }
 
-            // 正常执行完成，isError 始终为 false（仅超时和中断才为 true）
+
             return new ToolResult(sb.toString(), false);
 
         } catch (IOException e) {
@@ -177,9 +176,6 @@ public class BashTool implements Tool {
     }
 
     /**
-     * 对特殊命令的 exit code 1 返回语义提示。
-     * 管道命令取最后一段（bash 默认返回最后一个命令的 exit code），
-     * 对于 grep/diff/find/test 等命令，exit code 1 属于正常结果，附加提示帮助理解。
      */
     private String getExitCodeHint(String command, int exitCode) {
         if (exitCode != 1) {
@@ -190,24 +186,22 @@ public class BashTool implements Tool {
     }
 
     /**
-     * 从完整命令字符串中提取基础命令名。
-     * 处理管道（取最后一段）、路径前缀（取 basename）、env 前缀等。
      */
     private String extractBaseCommand(String command) {
         String cmd = command.strip();
 
-        // 管道：取最后一段，因为 bash 的 exit code 由管道最后一个命令决定
+
         int pipeIdx = cmd.lastIndexOf('|');
         if (pipeIdx >= 0 && pipeIdx < cmd.length() - 1) {
             cmd = cmd.substring(pipeIdx + 1).strip();
         }
 
-        // 跳过 env 变量赋值前缀（如 FOO=bar grep ...）
+
         while (cmd.contains("=") && !cmd.startsWith("=")) {
             int spaceIdx = cmd.indexOf(' ');
             int eqIdx = cmd.indexOf('=');
             if (eqIdx < spaceIdx || spaceIdx == -1) {
-                // 这一段是环境变量赋值，跳过
+
                 if (spaceIdx == -1) break;
                 cmd = cmd.substring(spaceIdx + 1).strip();
             } else {
@@ -215,11 +209,11 @@ public class BashTool implements Tool {
             }
         }
 
-        // 取第一个 token（命令名本身）
+
         String[] parts = cmd.split("\\s+", 2);
         String token = parts[0];
 
-        // 处理路径前缀，如 /usr/bin/grep → grep
+
         int slashIdx = token.lastIndexOf('/');
         if (slashIdx >= 0 && slashIdx < token.length() - 1) {
             token = token.substring(slashIdx + 1);

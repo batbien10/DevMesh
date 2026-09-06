@@ -10,7 +10,7 @@ public final class PromptSections {
 
     private PromptSections() {}
 
-    // ── Priority 0: Identity ────────────────────────────────────────────
+
 
     static final String IDENTITY_CONTENT = """
             You are DevMesh, an AI programming assistant running in the terminal. You help users with \
@@ -27,7 +27,7 @@ public final class PromptSections {
         return new Section("Identity", 0, IDENTITY_CONTENT);
     }
 
-    // ── Priority 10: System ─────────────────────────────────────────────
+
 
     static final String SYSTEM_CONTENT = """
             # System
@@ -48,7 +48,7 @@ public final class PromptSections {
         return new Section("System", 10, SYSTEM_CONTENT);
     }
 
-    // ── Priority 20: Doing Tasks ────────────────────────────────────────
+
 
     static final String DOING_TASKS_CONTENT = """
             # Doing tasks
@@ -93,7 +93,7 @@ public final class PromptSections {
         return new Section("DoingTasks", 20, DOING_TASKS_CONTENT);
     }
 
-    // ── Priority 30: Executing Actions ──────────────────────────────────
+
 
     static final String EXECUTING_ACTIONS_CONTENT = """
             # Executing actions with care
@@ -119,7 +119,7 @@ public final class PromptSections {
         return new Section("ExecutingActions", 30, EXECUTING_ACTIONS_CONTENT);
     }
 
-    // ── Priority 40: Using Tools ────────────────────────────────────────
+
 
     static final String USING_TOOLS_CONTENT = """
             # Using your tools
@@ -160,7 +160,7 @@ public final class PromptSections {
         return new Section("UsingTools", 40, USING_TOOLS_CONTENT);
     }
 
-    // ── Priority 50: Tone & Style ───────────────────────────────────────
+
 
     static final String TONE_STYLE_CONTENT = """
             # Tone and style
@@ -175,7 +175,7 @@ public final class PromptSections {
         return new Section("ToneStyle", 50, TONE_STYLE_CONTENT);
     }
 
-    // ── Priority 60: Output Efficiency ──────────────────────────────────
+
 
     static final String OUTPUT_EFFICIENCY_CONTENT = """
             # Text output (does not apply to tool calls)
@@ -201,7 +201,7 @@ public final class PromptSections {
         return new Section("TextOutput", 60, OUTPUT_EFFICIENCY_CONTENT);
     }
 
-    // ── Priority 70: Environment ────────────────────────────────────────
+
 
     public static Section environmentSection(EnvironmentContext env) {
         var sb = new StringBuilder();

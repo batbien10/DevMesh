@@ -29,7 +29,7 @@ public class PlanApprovalDialog {
     /** Whether the dialog is currently visible. */
     private boolean active;
 
-    // ── Styles (inline, matching Go renderPlanApprovalDialog) ────────────
+
     private static final Style HEADER_STYLE = Style.newStyle()
             .foreground(new ANSI256Color(99))
             .bold(true);
@@ -43,14 +43,14 @@ public class PlanApprovalDialog {
     private static final Style BOLD_STYLE = Style.newStyle()
             .bold(true);
 
-    // ── Option labels (matching Go) ─────────────────────────────────────
+
     private static final String[] OPTIONS = {
             "Yes, enter YOLO mode (auto-approve all)",
             "Yes, manually approve edits",
             "Tell DevMesh what to change",
     };
 
-    // ── Result types ────────────────────────────────────────────────────
+
 
     /** The kind of action the user chose. */
     public enum Result {
@@ -72,7 +72,7 @@ public class PlanApprovalDialog {
      */
     public record DialogResult(Result type, String feedback) {}
 
-    // ── Lifecycle ───────────────────────────────────────────────────────
+
 
     /**
      * Show the dialog, resetting cursor and feedback input.
@@ -88,7 +88,7 @@ public class PlanApprovalDialog {
         return active;
     }
 
-    // ── Key handling ────────────────────────────────────────────────────
+
 
     /**
      * Process a single key press.
@@ -149,7 +149,7 @@ public class PlanApprovalDialog {
         return null;
     }
 
-    // ── Rendering ───────────────────────────────────────────────────────
+
 
     /**
      * Render the dialog as a plain String (ANSI-styled).

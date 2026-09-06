@@ -1,6 +1,6 @@
 package devmesh.tui.tea;
 
-// 鼠标事件，目前只关心滚轮上下
+
 public class MouseMessage implements Message {
 
     public enum MouseButton {

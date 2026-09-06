@@ -13,10 +13,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * 从 URL 下载并安装 skill 到用户全局目录 (~/.devmesh/skills/)。
  * <p>
- * 支持 skills.sh、GitHub tree、raw.githubusercontent.com 三种 URL 格式。
- * 安装完成后自动刷新 catalog，新 skill 可通过 /{@code <name>} 或 LoadSkill 直接使用。
  */
 public class InstallSkillTool implements Tool {
 
@@ -29,19 +26,17 @@ public class InstallSkillTool implements Tool {
 
     private SkillCatalog catalog;
     private Consumer<String> onInstalled;
-    private String installRoot;   // 为空时自动取 ~/.devmesh/skills
+    private String installRoot;
 
-    // ── 外部注入 ──────────────────────────────────────────────────────
+
 
     public void setCatalog(SkillCatalog catalog) { this.catalog = catalog; }
 
-    /** 安装完成回调，TUI 用来重新注册斜杠命令。 */
     public void setOnInstalled(Consumer<String> callback) { this.onInstalled = callback; }
 
-    /** 测试用：覆盖默认安装目录。 */
     public void setInstallRoot(String root) { this.installRoot = root; }
 
-    // ── Tool 接口实现 ──────────────────────────────────────────────────
+
 
     @Override
     public String name() { return "InstallSkill"; }
@@ -80,7 +75,7 @@ public class InstallSkillTool implements Tool {
             return ToolResult.error("url is required");
         }
 
-        // 解析 URL
+
         SkillSource src;
         try {
             src = SkillInstaller.parseSkillURL(rawURL);
@@ -88,7 +83,7 @@ public class InstallSkillTool implements Tool {
             return ToolResult.error(e.getMessage());
         }
 
-        // 确定安装目录
+
         String root = installRoot;
         if (root == null || root.isEmpty()) {
             try {
@@ -98,7 +93,7 @@ public class InstallSkillTool implements Tool {
             }
         }
 
-        // 执行安装
+
         InstallReport report;
         try {
             var installer = new SkillInstaller();
@@ -107,7 +102,7 @@ public class InstallSkillTool implements Tool {
             return ToolResult.error("install failed: " + e.getMessage());
         }
 
-        // 刷新 catalog，让新 skill 立即可用
+
         if (catalog != null) {
             catalog.reload(catalog.getWorkDir());
         }
