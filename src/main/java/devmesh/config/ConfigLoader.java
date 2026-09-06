@@ -15,7 +15,7 @@ import java.util.Set;
 
 public class ConfigLoader {
 
-    private static final Set<String> VALID_PROTOCOLS = Set.of("anthropic", "openai", "openai-compat");
+    private static final Set<String> VALID_PROTOCOLS = Set.of("anthropic", "openai", "openai-compat", "openrouter");
 
     public static AppConfig load(String path) throws ConfigException {
         if (path != null && !path.isEmpty()) {
@@ -128,7 +128,7 @@ public class ConfigLoader {
 
             if (isBlank(p.getName())) missing.add("name");
             if (isBlank(p.getProtocol())) missing.add("protocol");
-            if (isBlank(p.getBaseUrl())) missing.add("base_url");
+            if (isBlank(p.getBaseUrl()) && !"openrouter".equals(p.getProtocol())) missing.add("base_url");
             if (isBlank(p.getModel())) missing.add("model");
 
             if (!missing.isEmpty()) {
@@ -139,7 +139,7 @@ public class ConfigLoader {
 
             if (!VALID_PROTOCOLS.contains(p.getProtocol())) {
                 throw new ConfigException(
-                        "Provider #%d: invalid protocol '%s', must be one of: anthropic, openai, openai-compat"
+                        "Provider #%d: invalid protocol '%s', must be one of: anthropic, openai, openai-compat, openrouter"
                                 .formatted(i + 1, p.getProtocol())
                 );
             }

@@ -14,6 +14,18 @@ providers:
     context_window: 128000
     max_output_tokens: 8192
 
+  # OpenRouter uses the OpenAI-compatible Chat Completions API.
+  # Omit base_url to use https://openrouter.ai/api/v1 automatically.
+  # Set OPENROUTER_API_KEY or provide api_key directly.
+  # Optional headers improve OpenRouter attribution and rankings.
+  # - name: openrouter
+  #   protocol: openrouter
+  #   model: openai/gpt-4o-mini
+  #   api_key: "replace-with-your-openrouter-api-key"
+  #   headers:
+  #     HTTP-Referer: https://your-site.example
+  #     X-Title: DevMesh
+
   # Anthropic Messages API example:
   # - name: anthropic-official
   #   protocol: anthropic

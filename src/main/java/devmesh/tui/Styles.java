@@ -32,6 +32,12 @@ public final class Styles {
     public static final Style bannerDim = Style.newStyle()
             .foreground(DIM_TEXT);
 
+    public static final Style bannerMeta = Style.newStyle()
+            .foreground(MUTED_TEXT);
+
+    public static final Style bannerRule = Style.newStyle()
+            .foreground(SEPARATOR_COLOR);
+
     public static final Style separator = Style.newStyle()
             .foreground(SEPARATOR_COLOR);
 

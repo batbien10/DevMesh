@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "devmesh"
-version = "1.0.0"
+version = "1.0.1"
 description = "DevMesh intelligent coding platform"
 
 java {
@@ -24,10 +24,6 @@ repositories {
 dependencies {
     // Terminal I/O (the TUI framework's low-level driver).
     implementation("org.jline:jline:3.28.0")
-
-    // Markdown terminal rendering
-    implementation("com.github.ajalt.mordant:mordant:3.0.2")
-    implementation("com.github.ajalt.mordant:mordant-markdown:3.0.2")
 
     // MCP SDK
     implementation("io.modelcontextprotocol.sdk:mcp:1.1.3")

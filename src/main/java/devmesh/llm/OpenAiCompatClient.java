@@ -31,12 +31,14 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class OpenAiCompatClient implements LlmClient {
 
+    static final String OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final HttpClient httpClient;
     private final String baseUrl;
     private final String apiKey;
     private final String model;
+    private final Map<String, String> headers;
     private volatile String systemPrompt;
     private volatile int maxOutputTokens;
 
@@ -44,12 +46,21 @@ public class OpenAiCompatClient implements LlmClient {
         String key = cfg.resolvedApiKey();
         if (key.isEmpty()) {
             throw new LlmException.AuthenticationException(
-                    "API key not found for openai-compat provider '" + cfg.getName()
-                            + "'. Set it in .devmesh/config.yaml or via OPENAI_API_KEY env var.");
+                    "API key not found for " + cfg.getProtocol() + " provider '" + cfg.getName()
+                    + "'. Set it in .devmesh/config.yaml or via OPENAI_API_KEY/OPENROUTER_API_KEY env var.");
         }
         this.apiKey = key;
-        this.baseUrl = cfg.getBaseUrl().replaceAll("/+$", "");
+        this.baseUrl = resolveBaseUrl(cfg);
         this.model = cfg.getModel();
+        var configuredHeaders = new LinkedHashMap<String, String>();
+        if (cfg.getHeaders() != null) {
+            cfg.getHeaders().forEach((name, value) -> {
+                if (name != null && !name.isBlank() && value != null) {
+                    configuredHeaders.put(name, value);
+                }
+            });
+        }
+        this.headers = Map.copyOf(configuredHeaders);
         this.systemPrompt = systemPrompt;
         this.maxOutputTokens = cfg.resolvedMaxOutputTokens();
 
@@ -98,14 +109,15 @@ public class OpenAiCompatClient implements LlmClient {
 
         String body = buildRequestBody(conv.getMessagesForModel(), tools);
 
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/chat/completions"))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
                 .header("Accept", "text/event-stream")
                 .timeout(Duration.ofMinutes(5))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(body));
+        applyCustomHeaders(requestBuilder, headers);
+        HttpRequest request = requestBuilder.build();
 
         HttpResponse<java.io.InputStream> response = httpClient.send(
                 request, HttpResponse.BodyHandlers.ofInputStream());
@@ -149,6 +161,32 @@ public class OpenAiCompatClient implements LlmClient {
                 streamEnded = handleSseData(data, queue, toolNames, toolArgs, toolIds, reasoningAccum);
             }
         }
+    }
+
+    static String resolveBaseUrl(ProviderConfig cfg) {
+        String configured = cfg.getBaseUrl();
+        if ((configured == null || configured.isBlank()) && "openrouter".equals(cfg.getProtocol())) {
+            return OPENROUTER_BASE_URL;
+        }
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalArgumentException("base_url is required for " + cfg.getProtocol() + " provider");
+        }
+        return configured.replaceAll("/+$", "");
+    }
+
+    static void applyCustomHeaders(HttpRequest.Builder requestBuilder, Map<String, String> headers) {
+        for (var entry : headers.entrySet()) {
+            String name = entry.getKey();
+            String value = entry.getValue();
+            if (name == null || name.isBlank() || value == null || isManagedHeader(name)) continue;
+            requestBuilder.header(name, value);
+        }
+    }
+
+    private static boolean isManagedHeader(String name) {
+        return "authorization".equalsIgnoreCase(name)
+                || "content-type".equalsIgnoreCase(name)
+                || "accept".equalsIgnoreCase(name);
     }
 
     // ------------------------------------------------------------------

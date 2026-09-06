@@ -21,6 +21,7 @@ public interface LlmClient {
             case "anthropic" -> new AnthropicClient(cfg, systemPrompt);
             case "openai" -> new OpenAiClient(cfg, systemPrompt);
             case "openai-compat" -> new OpenAiCompatClient(cfg, systemPrompt);
+            case "openrouter" -> new OpenAiCompatClient(cfg, systemPrompt);
 
             default -> throw new IllegalArgumentException("Unknown protocol: " + cfg.getProtocol());
         };

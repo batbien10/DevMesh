@@ -8,7 +8,7 @@
 ![MCP](https://img.shields.io/badge/MCP-supported-5C4EE5)
 ![Author](https://img.shields.io/badge/author-td-6E56CF)
 
-DevMesh is a local Coding Agent execution engine built with Java 21. It brings together multi-model access, the ReAct loop, context management, Tool/MCP, Skills, multi-agent collaboration, secure execution, run traces, and quality evaluation in one end-to-end system. It supports an interactive terminal, one-shot tasks, and a remote Web interface, and can connect to Anthropic, the OpenAI Responses API, and common OpenAI Chat Completions-compatible services.
+DevMesh is a local Coding Agent execution engine built with Java 21. It brings together multi-model access, the ReAct loop, context management, Tool/MCP, Skills, multi-agent collaboration, secure execution, run traces, and quality evaluation in one end-to-end system. It supports an interactive terminal, one-shot tasks, and a remote Web interface, and can connect to Anthropic, OpenAI, OpenRouter, and other OpenAI Chat Completions-compatible services.
 
 > This repository was organized and published in August 2026; most development took place locally before that.
 
@@ -51,16 +51,16 @@ flowchart LR
 - Java 21、Virtual Threads、Gradle
 - Anthropic Java SDK、OpenAI Java SDK
 - Model Context Protocol Java SDK
-- JLine、Mordant、Javalin
+- JLine、Javalin
 - Jackson、SnakeYAML、JUnit 5
 
 ## Engineering validation
 
 | Check | Current result |
 | --- | --- |
-| Automated tests | 120 passed, 0 failed |
+| Automated tests | 125 passed, 0 failed |
 | Tool Schema benchmark | 13 resident schemas injected at cold start out of 21 built-in tools; estimated OpenAI-compatible usage is 30.74% lower than the full 21-tool baseline |
-| 50-turn context benchmark | Three automatic compactions under a fixed 32K window; estimated average/peak context reduced by 55.61%/60.88%, with 0 failures across 50 tool-pair validations |
+| 50-turn context benchmark | Three automatic compactions under a fixed 32K window; estimated average/peak context reduced by 55.49%/60.88%, with 0 failures across 50 tool-pair validations |
 | GitHub Actions | Gradle Wrapper verification, tests, benchmark reproduction, and Shadow JAR packaging all pass |
 | Security boundary | Local configuration, API keys, sessions, memories, and traces are excluded from version control by default |
 | Release artifact | Executable `devmesh.jar` with entry point `devmesh.DevMesh` |
@@ -115,6 +115,19 @@ providers:
     model: replace-with-your-model-id
 ```
 
+OpenRouter can be configured with the dedicated `openrouter` protocol. The `base_url` is optional and defaults to `https://openrouter.ai/api/v1`:
+
+```yaml
+providers:
+  - name: openrouter
+    protocol: openrouter
+    model: openai/gpt-4o-mini
+    api_key: "replace-with-your-openrouter-api-key"
+    headers:
+      HTTP-Referer: https://your-site.example
+      X-Title: DevMesh
+```
+
 Real configuration, API keys, sessions, memories, and run traces are excluded by `.gitignore` and will not be uploaded to GitHub.
 
 ### Build and run
@@ -144,6 +157,12 @@ java -jar .\build\libs\devmesh.jar .\.devmesh\config.yaml -p "Analyze the curren
 
 # Remote Web mode
 java -jar .\build\libs\devmesh.jar .\.devmesh\config.yaml --remote=127.0.0.1:18888
+```
+
+To list all CLI options without loading a configuration file:
+
+```bash
+java -jar ./build/libs/devmesh.jar --help
 ```
 
 ### Demo

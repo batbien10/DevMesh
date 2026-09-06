@@ -1,13 +1,15 @@
 package devmesh.config;
 
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 public class ProviderConfig {
 
     private static final Map<String, String> ENV_KEY_MAP = Map.of(
             "anthropic", "ANTHROPIC_API_KEY",
             "openai", "OPENAI_API_KEY",
-            "openai-compat", "OPENAI_API_KEY"
+            "openai-compat", "OPENAI_API_KEY",
+            "openrouter", "OPENROUTER_API_KEY"
     );
 
     private String name;
@@ -15,6 +17,7 @@ public class ProviderConfig {
     private String baseUrl;
     private String model;
     private String apiKey;
+    private Map<String, String> headers = new LinkedHashMap<>();
     private boolean thinking;
 
     private int contextWindow;
@@ -44,6 +47,11 @@ public class ProviderConfig {
 
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+
+    public Map<String, String> getHeaders() { return headers; }
+    public void setHeaders(Map<String, String> headers) {
+        this.headers = headers != null ? new LinkedHashMap<>(headers) : new LinkedHashMap<>();
+    }
 
     public boolean isThinking() { return thinking; }
     public void setThinking(boolean thinking) { this.thinking = thinking; }

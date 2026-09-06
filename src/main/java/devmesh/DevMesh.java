@@ -24,6 +24,11 @@ public class DevMesh {
     private static final String DEFAULT_REMOTE_ADDR = ":18888";
 
     public static void main(String[] args) {
+        if (hasHelpFlag(args)) {
+            printUsage();
+            return;
+        }
+
         Integer evolutionExit = SkillEvolutionCli.tryRun(args);
         if (evolutionExit != null) {
             if (evolutionExit != 0) System.exit(evolutionExit);
@@ -183,5 +188,33 @@ public class DevMesh {
     private static String prettyJson(Object value) throws Exception {
         return new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
                 .writeValueAsString(value);
+    }
+
+    private static boolean hasHelpFlag(String[] args) {
+        for (String arg : args) {
+            if ("--help".equals(arg) || "-h".equals(arg)) return true;
+        }
+        return false;
+    }
+
+    private static void printUsage() {
+        System.out.println("DevMesh - local AI coding agent");
+        System.out.println();
+        System.out.println("Usage: java -jar devmesh.jar [config.yaml] [options]");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -h, --help                         Show this help message");
+        System.out.println("  -p, -p=<prompt>                    Run a one-shot prompt");
+        System.out.println("      --output-format <text|stream-json>");
+        System.out.println("                                      Select one-shot output format");
+        System.out.println("      --remote[=<address>]            Start Remote Web mode (default :18888)");
+        System.out.println("      --trace-report <path>           Render an offline trace report");
+        System.out.println("      --trace-eval <path>             Evaluate traces with a policy");
+        System.out.println("      --trace-policy <path>           YAML policy for --trace-eval");
+        System.out.println();
+        System.out.println("Environment:");
+        System.out.println("  DEVMESH_CONFIG                      Default configuration file path");
+        System.out.println("  DEVMESH_TRACE=false                 Disable trace recording");
+        System.out.println("  DEVMESH_TRACE_DIR=<path>            Trace output directory");
     }
 }

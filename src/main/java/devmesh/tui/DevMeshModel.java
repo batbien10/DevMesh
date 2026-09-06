@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class DevMeshModel implements Model {
 
-    private static final String VERSION = "DevMesh v0.1.0";
+    private static final String VERSION = "DevMesh v1.0.1";
 
     private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
 
@@ -752,11 +752,18 @@ public class DevMeshModel implements Model {
     }
 
     private String renderBanner() {
+        String providerName = selectedProvider != null && selectedProvider.getName() != null
+            ? selectedProvider.getName() : "No provider selected";
         String modelName = selectedProvider != null ? selectedProvider.getModel() : "";
+        String protocol = selectedProvider != null ? selectedProvider.getProtocol() : "";
         String workDir = System.getProperty("user.dir");
-        return Styles.banner.render(" /\\_/\\    ") + Styles.bannerDim.render(VERSION) + "\n" +
-               Styles.banner.render("( o.o )   ") + Styles.bannerDim.render(modelName) + "\n" +
-               Styles.banner.render(" > ^ <    ") + Styles.bannerDim.render(workDir);
+        String modelLine = modelName.isEmpty() ? providerName : providerName + " · " + modelName;
+        if (!protocol.isEmpty()) modelLine += " · " + protocol;
+        String rule = Styles.bannerRule.render("─".repeat(Math.max(width - 2, 24)));
+        return Styles.banner.render(" DevMesh ") + Styles.bannerDim.render(VERSION) + "\n"
+            + rule + "\n"
+            + Styles.bannerMeta.render(" " + modelLine) + "\n"
+            + Styles.bannerDim.render(" " + workDir);
     }
 
     private String viewProviderSelect() {
