@@ -53,7 +53,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          rm -rf release-runtime
+          rm -rf release-runtime release-bundle
           jlink \
             --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.security.jgss,java.sql,jdk.unsupported \
             --strip-debug \
@@ -61,13 +61,19 @@ jobs:
             --no-header-files \
             --compress=2 \
             --output release-runtime
-          tar -czf "${{ matrix.archive }}" -C release-runtime .
+          mkdir -p release-bundle/bin release-bundle/runtime
+          cp build/libs/devmesh.jar release-bundle/devmesh.jar
+          cp bin/devmesh bin/devmesh.ps1 release-bundle/bin/
+          cp -R release-runtime/. release-bundle/runtime/
+          chmod +x release-bundle/bin/devmesh
+          tar -czf "${{ matrix.archive }}" -C release-bundle .
 
       - name: Build Windows Java 21 runtime
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           if (Test-Path release-runtime) { Remove-Item release-runtime -Recurse -Force }
+          if (Test-Path release-bundle) { Remove-Item release-bundle -Recurse -Force }
           jlink.exe `
             --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.security.jgss,java.sql,jdk.unsupported `
             --strip-debug `
@@ -75,7 +81,11 @@ jobs:
             --no-header-files `
             --compress=2 `
             --output release-runtime
-          Compress-Archive -Path release-runtime\* -DestinationPath "${{ matrix.archive }}"
+          New-Item -ItemType Directory -Force -Path release-bundle\bin, release-bundle\runtime | Out-Null
+          Copy-Item build\libs\devmesh.jar release-bundle\devmesh.jar
+          Copy-Item bin\devmesh.bat, bin\devmesh.ps1 release-bundle\bin\
+          Copy-Item release-runtime\* release-bundle\runtime\ -Recurse
+          Compress-Archive -Path release-bundle\* -DestinationPath "${{ matrix.archive }}"
 
       - name: Upload runtime bundle
         uses: actions/upload-artifact@v4

@@ -82,11 +82,21 @@ The Schema token figure above is an **estimate** based on canonical compact JSON
 - Git
 - Windows, Linux, or macOS
 
-The [`v1.0.2` release](https://github.com/batbiendaik/DevMesh/releases/tag/v1.0.2) includes a Java 21 Linux x64 runtime bundle alongside `devmesh.jar`. The release workflow is also configured to produce Windows and macOS bundles when GitHub Actions is enabled for the repository:
+The [`v1.0.3` release](https://github.com/batbiendaik/DevMesh/releases/tag/v1.0.3) packages `devmesh.jar`, a Java 21 runtime, and launch scripts in one bundle for Linux, Windows, and macOS:
 
 - Linux x64: `devmesh-jdk21-linux-x64.tar.gz`
 - Windows x64: `devmesh-jdk21-windows-x64.zip`
 - macOS x64: `devmesh-jdk21-macos-x64.tar.gz`
+
+Each bundle contains this layout:
+
+```text
+devmesh.jar
+runtime/       # Java 21 runtime image
+bin/devmesh    # Linux/macOS launcher
+bin/devmesh.bat
+bin/devmesh.ps1
+```
 
 ### Get the project
 

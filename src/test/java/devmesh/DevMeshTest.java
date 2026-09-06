@@ -39,6 +39,6 @@ class DevMeshTest {
             System.setOut(originalOut);
         }
 
-        assertTrue(output.toString(StandardCharsets.UTF_8).contains("DevMesh 1.0.2"));
+        assertTrue(output.toString(StandardCharsets.UTF_8).contains("DevMesh 1.0.3"));
     }
 }
