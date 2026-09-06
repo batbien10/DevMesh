@@ -19,6 +19,15 @@ import devmesh.toolresult.ContentReplacementRecord;
 import devmesh.toolresult.ContentReplacementState;
 import devmesh.toolresult.ReplacementRecordsIO;
 import devmesh.toolresult.ToolResultBudget;
+import devmesh.compact.ContextControlPlane;
+import devmesh.compact.ContextCompactor;
+import devmesh.compact.RecoveryState;
+import devmesh.compact.ContextItem;
+import devmesh.compact.ContextLayer;
+import devmesh.compact.ContextPriority;
+import devmesh.compact.ContextSnapshot;
+import devmesh.compact.TokenEstimate;
+import devmesh.task.TaskList;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -68,6 +77,7 @@ public class Agent {
      * cold start. See {@link devmesh.compact.ContextCompactor.UsageAnchor}.
      */
     private devmesh.compact.ContextCompactor.UsageAnchor usageAnchor;
+    private ContextControlPlane contextControlPlane;
 
     /**
      * Per-conversation-thread tool-result decision log. Carries across
@@ -89,6 +99,7 @@ public class Agent {
             new devmesh.compact.RecoveryState();
 
     public devmesh.compact.RecoveryState getRecoveryState() { return recoveryState; }
+    public ContextControlPlane getContextControlPlane() { return contextControlPlane; }
 
     private devmesh.filehistory.FileHistory fileHistory;
     public void setFileHistory(devmesh.filehistory.FileHistory fh) { this.fileHistory = fh; }
@@ -146,6 +157,9 @@ public class Agent {
     private void agentLoop(ConversationManager conv, BlockingQueue<AgentEvent> queue) {
         AgentTracer tracer = AgentTracer.start(workDir, providerConfig, sessionId, agentName);
         conv.injectLongTermMemory(instructions, memoryContent);
+        contextControlPlane = new ContextControlPlane(
+            Path.of(workDir == null ? "." : workDir), sessionId, contextWindow, maxOutput);
+        refreshContextState(conv);
 
         int totalInput = 0, totalOutput = 0;
         int outputRecoveries = 0;
@@ -180,6 +194,8 @@ public class Agent {
                     conv.addSystemReminder(note);
                 }
             }
+
+            refreshContextState(conv);
 
             // Compute the tool schemas once per iteration so the recovery
             // attachment (when compact fires) and the Stream call below see
@@ -251,6 +267,7 @@ public class Agent {
                 }
 
                 if (conv.size() < sizeBefore) {
+                    contextControlPlane.markCompaction();
                     usageAnchor = null;
                     conv.resetLtmInjected();
                     conv.injectLongTermMemory(instructions, memoryContent);
@@ -527,6 +544,33 @@ public class Agent {
     private static int estimateSchemaTokens(List<Map<String, Object>> schemas) {
         return ToolSchemaMetrics.estimateTokens(schemas);
     }
+
+        private void refreshContextState(ConversationManager conv) {
+        if (contextControlPlane == null) return;
+        var tasks = new TaskList("default", workDir == null ? System.getProperty("user.dir") : workDir).list();
+        String task = conv.getMessages().stream()
+            .filter(message -> "user".equals(message.getRole()))
+            .map(devmesh.conversation.Message::getContent)
+            .filter(content -> content != null && !content.isBlank())
+            .findFirst().orElse("");
+        var completed = tasks.stream().filter(t -> TaskList.Status.COMPLETED.value().equals(t.getStatus()))
+            .map(TaskList.Task::getSubject).toList();
+        var pending = tasks.stream().filter(t -> !TaskList.Status.COMPLETED.value().equals(t.getStatus()))
+            .map(TaskList.Task::getSubject).toList();
+        var active = tasks.stream().filter(t -> TaskList.Status.IN_PROGRESS.value().equals(t.getStatus()))
+            .map(TaskList.Task::getSubject).findFirst().orElse("");
+        var repairHistory = tasks.stream()
+            .filter(t -> t.getMetadata() != null && Boolean.TRUE.equals(t.getMetadata().get("repair")))
+            .map(t -> t.getSubject() + "=" + t.getStatus()).toList();
+        var files = recoveryState.snapshotFiles(ContextCompactor.RECOVERY_FILE_LIMIT).stream()
+            .map(RecoveryState.FileReadRecord::path).toList();
+        contextControlPlane.setSnapshot(new ContextSnapshot(task, active, List.of(), completed, pending,
+            files, List.of(), repairHistory, List.of(), List.of(), Map.of("model", providerConfig.getModel())));
+        int estimate = ContextCompactor.estimateTokens(conv.getMessagesForModel());
+        contextControlPlane.put(new ContextItem("conversation", ContextLayer.TOOL, ContextPriority.P3_LOW,
+            "conversation", new TokenEstimate(estimate, TokenEstimate.Confidence.ESTIMATED), false));
+        conv.setEphemeralContext("persistent-execution-state", contextControlPlane.renderPersistentState());
+        }
 
     private void injectCanarySkill(ConversationManager conv, AgentTracer tracer) {
         String candidateId = System.getProperty("devmesh.canary.skill");
