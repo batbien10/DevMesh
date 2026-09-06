@@ -30,6 +30,8 @@ import devmesh.subagent.SubAgentProgress;
 import devmesh.subagent.SubAgentTaskManager;
 import devmesh.task.TaskList;
 import devmesh.task.TaskTools;
+import devmesh.task.SmartOrchestrator;
+import devmesh.task.AgentTodoSynchronizer;
 import devmesh.tool.ToolRegistry;
 import devmesh.tool.impl.AskUserTool;
 import devmesh.tool.impl.ToolSearchTool;
@@ -135,6 +137,8 @@ public class DevMeshModel implements Model {
     private McpManager mcpManager;
     private SkillCatalog skillCatalog;
     private TaskList taskList;
+    private SmartOrchestrator smartOrchestrator;
+    private AgentTodoSynchronizer todoSynchronizer;
     private MemoryManager memoryManager;
     private String instructionsContent = "";
     private String memoryContentField = "";
@@ -150,6 +154,8 @@ public class DevMeshModel implements Model {
     private String runtimePopupKind = "";
     private List<String> runtimePopupOptions = List.of();
     private int runtimePopupCursor;
+    private boolean todoPopupOpen;
+    private int todoPopupCursor;
 
 
     private final HistoryStore historyStore = new HistoryStore();
@@ -534,6 +540,8 @@ public class DevMeshModel implements Model {
             }
 
             taskList = new TaskList("default", workDir);
+            smartOrchestrator = new SmartOrchestrator(taskList);
+            todoSynchronizer = new AgentTodoSynchronizer(taskList);
             registry.register(new TaskTools.TaskCreateTool(taskList));
             registry.register(new TaskTools.TaskGetTool(taskList));
             registry.register(new TaskTools.TaskListTool(taskList));
@@ -814,6 +822,7 @@ public class DevMeshModel implements Model {
     private UpdateResult<DevMeshModel> handleChatKey(KeyPressMessage kpm) {
         String key = kpm.key();
 
+        if (todoPopupOpen) return handleTodoPopupKey(kpm);
         if (runtimePopupOpen) return handleRuntimePopupKey(kpm);
 
         if (inputMode == TuiMode.NORMAL) {
@@ -1308,6 +1317,54 @@ public class DevMeshModel implements Model {
         if (client != null) client.setRuntimeSettings(runtimeSettings);
     }
 
+    private UpdateResult<DevMeshModel> handleTodoPopupKey(KeyPressMessage kpm) {
+        String key = kpm.key();
+        var tasks = taskList == null ? List.<TaskList.Task>of() : taskList.list();
+        if (key.equals("escape")) {
+            todoPopupOpen = false;
+            inputMode = TuiMode.NORMAL;
+        } else if ((key.equals("down") || key.equals("j")) && !tasks.isEmpty()) {
+            todoPopupCursor = Math.min(tasks.size() - 1, todoPopupCursor + 1);
+        } else if ((key.equals("up") || key.equals("k")) && !tasks.isEmpty()) {
+            todoPopupCursor = Math.max(0, todoPopupCursor - 1);
+        }
+        return UpdateResult.from(this);
+    }
+
+    private void openTodoPopup() {
+        todoPopupOpen = true;
+        todoPopupCursor = 0;
+        inputMode = TuiMode.POPUP;
+    }
+
+    private String renderTodoPopup() {
+        if (taskList == null) return "";
+        var tasks = taskList.list();
+        var sb = new StringBuilder();
+        sb.append(Styles.selectLabel.render("  ┌─ Todo ───────────────────────────────┐")).append("\n");
+        if (tasks.isEmpty()) {
+            sb.append(Styles.toolDetail.render("  │ No orchestrator tasks yet.")).append("\n");
+        } else {
+            for (int i = 0; i < tasks.size(); i++) {
+                var task = tasks.get(i);
+                String marker = switch (task.getStatus()) {
+                    case "completed" -> "✓";
+                    case "in_progress" -> "→";
+                    case "failed" -> "✗";
+                    case "blocked" -> "!";
+                    case "skipped" -> "-";
+                    default -> "○";
+                };
+                var style = i == todoPopupCursor ? Styles.selectedItem : Styles.normalItem;
+                sb.append(style.render("  │ " + marker + " " + task.getSubject())).append("\n");
+            }
+        }
+        long completed = tasks.stream().filter(t -> TaskList.Status.COMPLETED.value().equals(t.getStatus())).count();
+        sb.append(Styles.toolDetail.render("  │ " + completed + "/" + tasks.size() + " completed")).append("\n");
+        sb.append(Styles.toolDetail.render("  └──────────────────────────────────────┘")).append("\n");
+        return sb.toString();
+    }
+
     private UpdateResult<DevMeshModel> executeSlashCommand(devmesh.command.Command cmd, String args) {
         return switch (cmd.type()) {
             case LOCAL -> {
@@ -1330,6 +1387,7 @@ public class DevMeshModel implements Model {
                         else applyThinking(args.strip());
                     }
                     case "model-settings" -> openRuntimePopup("settings");
+                    case "todo" -> openTodoPopup();
                     case "model", "provider" -> {
                         state = AppState.PROVIDER_SELECT;
                         providerCursor = Math.max(0, providers.indexOf(selectedProvider));
@@ -1355,6 +1413,8 @@ public class DevMeshModel implements Model {
                             agent.setToolNameFilter(null);
                         }
                         taskList = new TaskList("default", wd);
+                        smartOrchestrator = new SmartOrchestrator(taskList);
+                        todoSynchronizer = new AgentTodoSynchronizer(taskList);
                         totalInput = 0;
                         totalOutput = 0;
 
@@ -1573,6 +1633,11 @@ public class DevMeshModel implements Model {
             return UpdateResult.from(this);
         }
 
+        if (smartOrchestrator != null && taskList.list().isEmpty()) {
+            smartOrchestrator.plan(userText);
+            smartOrchestrator.startNext();
+        }
+
         if (conversation.getMessages().isEmpty() && memoryManager != null) {
             memoryManager.injectMemories(conversation);
         }
@@ -1611,6 +1676,7 @@ public class DevMeshModel implements Model {
 
         var queue = new java.util.concurrent.LinkedBlockingQueue<devmesh.agent.AgentEvent>(64);
         agentQueue = queue;
+        if (todoSynchronizer != null) todoSynchronizer.setEventQueue(queue);
         if (askUserTool != null) askUserTool.setEventQueue(queue);
 
 
@@ -1647,6 +1713,7 @@ public class DevMeshModel implements Model {
         boolean needsCommit = false;
 
         for (var event : events) {
+            if (todoSynchronizer != null) todoSynchronizer.onEvent(event);
             switch (event) {
                 case AgentEvent.StreamText e -> streamBuf.append(e.text());
                 case AgentEvent.ThinkingText e -> {}
@@ -1682,6 +1749,51 @@ public class DevMeshModel implements Model {
                         }
                     }
                     commitCompletedToolBlocks();
+                    needsCommit = true;
+                }
+                case AgentEvent.CommandStarted e -> {
+                    chatMessages.add(new ChatMessage("system", "▶ " + e.command()));
+                    needsCommit = true;
+                }
+                case AgentEvent.CommandOutput e -> {
+                    chatMessages.add(new ChatMessage(e.stderr() ? "error" : "system", "  " + e.text()));
+                    needsCommit = true;
+                }
+                case AgentEvent.CommandCompleted e -> {
+                    chatMessages.add(new ChatMessage(e.exitCode() == 0 ? "system" : "error",
+                            "■ command " + e.status() + " (exit " + e.exitCode() + ")"));
+                    needsCommit = true;
+                }
+                case AgentEvent.CommandTimedOut e -> {
+                    chatMessages.add(new ChatMessage("error", "■ command timed out"));
+                    needsCommit = true;
+                }
+                case AgentEvent.CommandCancelled e -> {
+                    chatMessages.add(new ChatMessage("system", "■ command cancelled"));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairDiagnosing e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Diagnosing " + e.intent() + " failure"));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairPlanned e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Repair planned: " + e.taskId()));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairApplying e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Applying repair: " + e.taskId()));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairRetesting e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Retesting repair: " + e.taskId()));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairSucceeded e -> {
+                    chatMessages.add(new ChatMessage("system", "✓ Repair verified: " + e.taskId()));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairFailed e -> {
+                    chatMessages.add(new ChatMessage("error", "✗ Repair failed: " + e.reason()));
                     needsCommit = true;
                 }
                 case AgentEvent.TurnComplete e -> {
@@ -2812,6 +2924,7 @@ public class DevMeshModel implements Model {
             if (slashMenuOpen && !slashMatches.isEmpty()) bottomHeight += Math.min(slashMatches.size(), 8);
             if (atMenuOpen && !atMatches.isEmpty()) bottomHeight += Math.min(atMatches.size(), 8);
             if (runtimePopupOpen) bottomHeight += runtimePopupOptions.size() + 3;
+            if (todoPopupOpen && taskList != null) bottomHeight += taskList.list().size() + 3;
             int viewportHeight = Math.max(height - bottomHeight, 3);
 
             if (lineCount > viewportHeight && scrollOffset > lineCount - viewportHeight) {
@@ -2890,6 +3003,10 @@ public class DevMeshModel implements Model {
                 sb.append(style.render(marker + "@" + atMatches.get(i)));
                 sb.append("\n");
             }
+        }
+
+        if (todoPopupOpen) {
+            sb.append(renderTodoPopup());
         }
 
         if (runtimePopupOpen) {

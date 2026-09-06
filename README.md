@@ -44,6 +44,12 @@ providers:
     supports_temperature: true
 ```
 
+## Smart Coding Orchestrator
+
+DevMesh detects the operating system, shell, project type, wrappers, and available tools before resolving build and test intents. Gradle, Maven, Node, Rust, Go, CMake, Make, and Git commands use structured `ProcessBuilder` execution with explicit working directories and timeouts. Windows uses `.bat`, `.cmd`, and PowerShell-compatible execution instead of assuming Bash.
+
+Medium and complex first requests create a persisted Todo plan under `.devmesh/tasks/`. Use `/todo` to inspect it. Todo states are `pending`, `in_progress`, `completed`, `blocked`, `failed`, and `skipped`; the plan survives context compaction and can continue from its current task.
+
 > This repository was organized and published in August 2026; most development took place locally before that.
 
 <p align="center">

@@ -743,6 +743,26 @@ public class RemoteServer {
                             "elapsed", e.elapsed()
                     )));
                 }
+                    case AgentEvent.CommandStarted e -> broadcast(Map.of("type", "command_started",
+                        "data", Map.of("command", e.command())));
+                    case AgentEvent.CommandOutput e -> broadcast(Map.of("type", "command_output",
+                        "data", Map.of("text", e.text(), "stderr", e.stderr())));
+                    case AgentEvent.CommandCompleted e -> broadcast(Map.of("type", "command_completed",
+                        "data", Map.of("exitCode", e.exitCode(), "status", e.status())));
+                    case AgentEvent.CommandTimedOut e -> broadcast(Map.of("type", "command_timeout", "data", Map.of()));
+                    case AgentEvent.CommandCancelled e -> broadcast(Map.of("type", "command_cancelled", "data", Map.of()));
+                    case AgentEvent.RepairDiagnosing e -> broadcast(Map.of("type", "repair_diagnosing",
+                        "data", Map.of("intent", e.intent(), "failureSignature", e.failureSignature())));
+                    case AgentEvent.RepairPlanned e -> broadcast(Map.of("type", "repair_planned",
+                        "data", Map.of("taskId", e.taskId(), "diagnostics", e.diagnostics())));
+                    case AgentEvent.RepairApplying e -> broadcast(Map.of("type", "repair_applying",
+                        "data", Map.of("taskId", e.taskId())));
+                    case AgentEvent.RepairRetesting e -> broadcast(Map.of("type", "repair_retesting",
+                        "data", Map.of("taskId", e.taskId())));
+                    case AgentEvent.RepairSucceeded e -> broadcast(Map.of("type", "repair_succeeded",
+                        "data", Map.of("taskId", e.taskId())));
+                    case AgentEvent.RepairFailed e -> broadcast(Map.of("type", "repair_failed",
+                        "data", Map.of("failureSignature", e.failureSignature(), "reason", e.reason())));
                 case AgentEvent.PermissionRequestEvent e -> {
 
                     String id = "perm_" + System.nanoTime();

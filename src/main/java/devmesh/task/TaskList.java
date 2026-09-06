@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Instant;
 
 /**
  * Manages a named list of tasks persisted as JSON under
@@ -27,7 +28,10 @@ public class TaskList {
     public enum Status {
         PENDING("pending"),
         IN_PROGRESS("in_progress"),
-        COMPLETED("completed");
+        COMPLETED("completed"),
+        BLOCKED("blocked"),
+        FAILED("failed"),
+        SKIPPED("skipped");
 
         private final String value;
 
@@ -189,6 +193,17 @@ public class TaskList {
             return Optional.of(new UpdateResult(target, List.of("deleted")));
         }
 
+        if (statusVal instanceof String s) {
+            Status.fromString(s);
+            if (Status.IN_PROGRESS.value().equals(s)) {
+                for (Task task : tasks) {
+                    if (!task.id.equals(id) && Status.IN_PROGRESS.value().equals(task.status)) {
+                        task.status = Status.PENDING.value();
+                    }
+                }
+            }
+        }
+
         List<String> changed = new ArrayList<>();
 
         if (updates.containsKey("subject")) {
@@ -271,6 +286,21 @@ public class TaskList {
         }
 
         return Optional.of(new UpdateResult(target, changed));
+    }
+
+    /** Appends compact execution history to a task without storing command output. */
+    public synchronized void recordEvent(String id, String eventType, String reason) {
+        var task = get(id).orElse(null);
+        if (task == null) return;
+        var history = new ArrayList<Object>();
+        Object existing = task.metadata == null ? null : task.metadata.get("event_history");
+        if (existing instanceof List<?> entries) history.addAll(entries);
+        history.add(Map.of(
+                "timestamp", Instant.now().toString(),
+                "event", eventType,
+                "status", task.status,
+                "reason", reason == null ? "" : reason));
+        update(id, Map.of("metadata", Map.of("event_history", history)));
     }
 
     /**

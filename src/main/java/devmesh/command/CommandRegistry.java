@@ -261,6 +261,11 @@ public class CommandRegistry {
                     new String[]{}, CommandType.LOCAL, false),
                 ctx -> "Available tools: " + ctx.toolCount().getAsInt()
             );
+            register(
+                new Command("todo", "Show the current Smart Orchestrator plan",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
 
         // /clear (LOCAL_UI)
         register(

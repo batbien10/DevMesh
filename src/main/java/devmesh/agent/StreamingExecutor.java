@@ -163,6 +163,9 @@ public class StreamingExecutor {
         long start = System.nanoTime();
         ToolResult result;
         try {
+            if (tool instanceof devmesh.tool.CommandEventEmitter emitter) {
+                emitter.setEventSink(this::putSafe);
+            }
             result = tool.execute(call.args());
         } catch (Exception e) {
             result = ToolResult.error("Tool execution error: " + e.getMessage());

@@ -2,17 +2,19 @@ package devmesh.tool.impl;
 
 import devmesh.sandbox.Sandbox;
 import devmesh.sandbox.SandboxConfig;
+import devmesh.platform.CommandSpec;
+import devmesh.platform.ProcessExecutor;
+import devmesh.platform.ProcessResult;
 import devmesh.tool.Tool;
 import devmesh.tool.ToolCategory;
 import devmesh.tool.ToolResult;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
-public class BashTool implements Tool {
+public class BashTool implements Tool, devmesh.tool.CommandEventEmitter {
 
     private static final int MAX_TIMEOUT = 600;
 
@@ -34,6 +36,8 @@ public class BashTool implements Tool {
 
     private Sandbox sandbox;
     private SandboxConfig sandboxConfig;
+    private final ProcessExecutor processExecutor = new ProcessExecutor();
+    private java.util.function.Consumer<devmesh.agent.AgentEvent> eventSink = ignored -> {};
 
     public BashTool() {
         this.workDir = null;
@@ -45,6 +49,9 @@ public class BashTool implements Tool {
 
     public void setSandbox(Sandbox sandbox) { this.sandbox = sandbox; }
     public void setSandboxConfig(SandboxConfig config) { this.sandboxConfig = config; }
+    @Override public void setEventSink(java.util.function.Consumer<devmesh.agent.AgentEvent> sink) {
+        this.eventSink = sink == null ? ignored -> {} : sink;
+    }
 
     private static final String DESCRIPTION = """
             Execute a shell command and return stdout and stderr.
@@ -120,30 +127,30 @@ public class BashTool implements Tool {
                 actualCommand = sandbox.wrap(command, sandboxConfig);
             }
 
-            ProcessBuilder pb = new ProcessBuilder("bash", "-c", actualCommand);
-
-            pb.redirectErrorStream(true);
-
-
-            if (workDir != null && !workDir.isEmpty()) {
-                pb.directory(new java.io.File(workDir));
-            }
-
-            Process process = pb.start();
-
-
-            String output;
-            try (InputStream stream = process.getInputStream()) {
-                output = new String(stream.readAllBytes());
-            }
-
-            boolean finished = process.waitFor(timeout, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
+            var spec = new CommandSpec(actualCommand, List.of(),
+                    workDir == null || workDir.isBlank() ? null : Path.of(workDir),
+                    Map.of(), Duration.ofSeconds(timeout), CommandSpec.Mode.SHELL);
+            var running = processExecutor.start(spec, event -> {
+                switch (event) {
+                    case devmesh.platform.ProcessEvent.Started e -> eventSink.accept(new devmesh.agent.AgentEvent.CommandStarted(e.command()));
+                    case devmesh.platform.ProcessEvent.Output e -> eventSink.accept(new devmesh.agent.AgentEvent.CommandOutput(e.text(), false));
+                    case devmesh.platform.ProcessEvent.ErrorOutput e -> eventSink.accept(new devmesh.agent.AgentEvent.CommandOutput(e.text(), true));
+                    case devmesh.platform.ProcessEvent.Completed e -> eventSink.accept(new devmesh.agent.AgentEvent.CommandCompleted(e.exitCode(), "completed"));
+                    case devmesh.platform.ProcessEvent.TimedOut ignored -> eventSink.accept(new devmesh.agent.AgentEvent.CommandTimedOut());
+                    case devmesh.platform.ProcessEvent.Cancelled ignored -> eventSink.accept(new devmesh.agent.AgentEvent.CommandCancelled());
+                    case devmesh.platform.ProcessEvent.Failed e -> eventSink.accept(new devmesh.agent.AgentEvent.CommandCompleted(-1, e.status().name()));
+                }
+            });
+            ProcessResult result = running.completion().join();
+            String output = result.output();
+            if (result.status() == ProcessResult.Status.TIMEOUT) {
                 return ToolResult.error("Error: command timed out after " + timeout + "s");
             }
-
-            int exitCode = process.exitValue();
+            if (result.status() != ProcessResult.Status.SUCCESS
+                    && result.status() != ProcessResult.Status.FAILED) {
+                return ToolResult.error("Error executing command (" + result.status() + "): " + output);
+            }
+            int exitCode = result.exitCode();
 
             var sb = new StringBuilder();
             if (!output.isEmpty()) {
@@ -167,11 +174,8 @@ public class BashTool implements Tool {
 
             return new ToolResult(sb.toString(), false);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             return ToolResult.error("Error executing command: " + e.getMessage());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ToolResult.error("Error: command interrupted");
         }
     }
 

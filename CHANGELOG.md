@@ -10,6 +10,8 @@
 - Preserved one-shot, remote, agent streaming, tool, permission, session, and context-control paths.
 - Added capability-aware `/mode`, `/thinking`, and `/model-settings` controls for reasoning, temperature, top-p, and verbosity settings.
 - Added provider-bound tri-state capability detection and request filtering so unsupported or unknown parameters are never guessed onto the wire.
+- Added Smart Coding Orchestrator foundations with persisted complexity-aware Todo plans and explicit task states.
+- Added cross-platform shell detection, structured process execution, project/build detection, command intents, timeouts, and Windows wrapper resolution.
 
 ## 1.0.3
 

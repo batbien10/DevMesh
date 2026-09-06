@@ -295,6 +295,18 @@ public class PrintMode {
                     }
                 }
 
+                case AgentEvent.CommandStarted e -> {}
+                case AgentEvent.CommandOutput e -> {}
+                case AgentEvent.CommandCompleted e -> {}
+                case AgentEvent.CommandTimedOut e -> {}
+                case AgentEvent.CommandCancelled e -> {}
+                case AgentEvent.RepairDiagnosing e -> {}
+                case AgentEvent.RepairPlanned e -> {}
+                case AgentEvent.RepairApplying e -> {}
+                case AgentEvent.RepairRetesting e -> {}
+                case AgentEvent.RepairSucceeded e -> {}
+                case AgentEvent.RepairFailed e -> {}
+
                 case AgentEvent.PermissionRequestEvent e -> {
 
                     e.future().complete(PermissionResponse.ALLOW);
