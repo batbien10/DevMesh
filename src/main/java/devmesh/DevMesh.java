@@ -20,10 +20,16 @@ import sun.misc.Signal;
 
 public class DevMesh {
 
+    public static final String VERSION = "1.0.2";
+
     // Default listening address for Remote mode.
     private static final String DEFAULT_REMOTE_ADDR = ":18888";
 
     public static void main(String[] args) {
+        if (hasVersionFlag(args)) {
+            System.out.println("DevMesh " + VERSION);
+            return;
+        }
         if (hasHelpFlag(args)) {
             printUsage();
             return;
@@ -197,6 +203,13 @@ public class DevMesh {
         return false;
     }
 
+    private static boolean hasVersionFlag(String[] args) {
+        for (String arg : args) {
+            if ("--version".equals(arg) || "-V".equals(arg)) return true;
+        }
+        return false;
+    }
+
     private static void printUsage() {
         System.out.println("DevMesh - local AI coding agent");
         System.out.println();
@@ -204,6 +217,7 @@ public class DevMesh {
         System.out.println();
         System.out.println("Options:");
         System.out.println("  -h, --help                         Show this help message");
+        System.out.println("  -V, --version                      Show the DevMesh version");
         System.out.println("  -p, -p=<prompt>                    Run a one-shot prompt");
         System.out.println("      --output-format <text|stream-json>");
         System.out.println("                                      Select one-shot output format");

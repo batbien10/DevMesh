@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "devmesh"
-version = "1.0.1"
+version = "1.0.2"
 description = "DevMesh intelligent coding platform"
 
 java {

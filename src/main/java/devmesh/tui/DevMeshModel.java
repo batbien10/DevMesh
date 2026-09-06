@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class DevMeshModel implements Model {
 
-    private static final String VERSION = "DevMesh v1.0.1";
+    private static final String VERSION = "DevMesh v" + devmesh.DevMesh.VERSION;
 
     private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
 

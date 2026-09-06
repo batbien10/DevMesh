@@ -9,8 +9,22 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build-runtime:
+    name: Build ${{ matrix.platform }} runtime
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            os: ubuntu-24.04
+            archive: devmesh-jdk21-linux-x64.tar.gz
+          - platform: windows-x64
+            os: windows-2022
+            archive: devmesh-jdk21-windows-x64.zip
+          - platform: macos-x64
+            os: macos-13
+            archive: devmesh-jdk21-macos-x64.tar.gz
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -25,8 +39,68 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6
 
-      - name: Test and build
+      - name: Test and build JAR on Unix
+        if: runner.os != 'Windows'
         run: ./gradlew test shadowJar
+
+      - name: Test and build JAR on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\gradlew.bat test shadowJar
+
+      - name: Build Linux/macOS Java 21 runtime
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          rm -rf release-runtime
+          jlink \
+            --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.security.jgss,java.sql,jdk.unsupported \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --compress=2 \
+            --output release-runtime
+          tar -czf "${{ matrix.archive }}" -C release-runtime .
+
+      - name: Build Windows Java 21 runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path release-runtime) { Remove-Item release-runtime -Recurse -Force }
+          jlink.exe `
+            --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.security.jgss,java.sql,jdk.unsupported `
+            --strip-debug `
+            --no-man-pages `
+            --no-header-files `
+            --compress=2 `
+            --output release-runtime
+          Compress-Archive -Path release-runtime\* -DestinationPath "${{ matrix.archive }}"
+
+      - name: Upload runtime bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ matrix.archive }}
+
+      - name: Upload JAR
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: devmesh-jar
+          path: build/libs/devmesh.jar
+
+  release:
+    needs: build-runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
 
       - name: Publish GitHub release
         env:
@@ -37,9 +111,9 @@ jobs:
             if [ -f "${notes_file}" ]; then
               gh release edit "${GITHUB_REF_NAME}" --title "DevMesh ${GITHUB_REF_NAME}" --notes-file "${notes_file}"
             fi
-            gh release upload "${GITHUB_REF_NAME}" build/libs/devmesh.jar --clobber
+            gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
           elif [ -f "${notes_file}" ]; then
-            gh release create "${GITHUB_REF_NAME}" build/libs/devmesh.jar --title "DevMesh ${GITHUB_REF_NAME}" --notes-file "${notes_file}"
+            gh release create "${GITHUB_REF_NAME}" release-assets/* --title "DevMesh ${GITHUB_REF_NAME}" --notes-file "${notes_file}"
           else
-            gh release create "${GITHUB_REF_NAME}" build/libs/devmesh.jar --title "DevMesh ${GITHUB_REF_NAME}" --generate-notes
+            gh release create "${GITHUB_REF_NAME}" release-assets/* --title "DevMesh ${GITHUB_REF_NAME}" --generate-notes
           fi

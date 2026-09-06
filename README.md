@@ -58,7 +58,7 @@ flowchart LR
 
 | Check | Current result |
 | --- | --- |
-| Automated tests | 125 passed, 0 failed |
+| Automated tests | 126 passed, 0 failed |
 | Tool Schema benchmark | 13 resident schemas injected at cold start out of 21 built-in tools; estimated OpenAI-compatible usage is 30.74% lower than the full 21-tool baseline |
 | 50-turn context benchmark | Three automatic compactions under a fixed 32K window; estimated average/peak context reduced by 55.49%/60.88%, with 0 failures across 50 tool-pair validations |
 | GitHub Actions | Gradle Wrapper verification, tests, benchmark reproduction, and Shadow JAR packaging all pass |
@@ -81,6 +81,12 @@ The Schema token figure above is an **estimate** based on canonical compact JSON
 - JDK 21 or later
 - Git
 - Windows, Linux, or macOS
+
+The [`v1.0.2` release](https://github.com/batbiendaik/DevMesh/releases/tag/v1.0.2) also provides platform-specific Java 21 runtime bundles. Download `devmesh.jar` and the runtime for your operating system if Java 21 is not already installed:
+
+- Linux x64: `devmesh-jdk21-linux-x64.tar.gz`
+- Windows x64: `devmesh-jdk21-windows-x64.zip`
+- macOS x64: `devmesh-jdk21-macos-x64.tar.gz`
 
 ### Get the project
 
@@ -163,6 +169,12 @@ To list all CLI options without loading a configuration file:
 
 ```bash
 java -jar ./build/libs/devmesh.jar --help
+```
+
+To print the installed DevMesh version without loading a configuration file:
+
+```bash
+java -jar ./build/libs/devmesh.jar --version
 ```
 
 ### Demo
