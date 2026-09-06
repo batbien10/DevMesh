@@ -1776,6 +1776,10 @@ public class DevMeshModel implements Model {
                     chatMessages.add(new ChatMessage("system", "↻ Diagnosing " + e.intent() + " failure"));
                     needsCommit = true;
                 }
+                case AgentEvent.RepairDiagnosisCompleted e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Diagnosis: " + e.failureType()));
+                    needsCommit = true;
+                }
                 case AgentEvent.RepairPlanned e -> {
                     chatMessages.add(new ChatMessage("system", "↻ Repair planned: " + e.taskId()));
                     needsCommit = true;
@@ -1788,12 +1792,20 @@ public class DevMeshModel implements Model {
                     chatMessages.add(new ChatMessage("system", "↻ Retesting repair: " + e.taskId()));
                     needsCommit = true;
                 }
+                case AgentEvent.RepairRetrying e -> {
+                    chatMessages.add(new ChatMessage("system", "↻ Repair retry " + e.attempt()));
+                    needsCommit = true;
+                }
                 case AgentEvent.RepairSucceeded e -> {
                     chatMessages.add(new ChatMessage("system", "✓ Repair verified: " + e.taskId()));
                     needsCommit = true;
                 }
                 case AgentEvent.RepairFailed e -> {
                     chatMessages.add(new ChatMessage("error", "✗ Repair failed: " + e.reason()));
+                    needsCommit = true;
+                }
+                case AgentEvent.RepairCancelled e -> {
+                    chatMessages.add(new ChatMessage("system", "■ Repair cancelled"));
                     needsCommit = true;
                 }
                 case AgentEvent.TurnComplete e -> {

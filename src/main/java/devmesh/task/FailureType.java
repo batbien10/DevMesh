@@ -1,0 +1,14 @@
+package devmesh.task;
+
+public enum FailureType {
+    COMPILE_ERROR,
+    TEST_FAILURE,
+    RUNTIME_ERROR,
+    COMMAND_FAILURE,
+    DEPENDENCY_ERROR,
+    CONFIGURATION_ERROR,
+    ENVIRONMENT_ERROR,
+    TIMEOUT,
+    CANCELLATION,
+    UNKNOWN
+}

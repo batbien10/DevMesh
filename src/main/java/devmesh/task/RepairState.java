@@ -8,5 +8,8 @@ public enum RepairState {
     REPAIRING,
     RETESTING,
     VERIFIED,
-    FAILED_FINAL
+    FAILED_FINAL,
+    CANCELLED,
+    TIMEOUT,
+    BLOCKED
 }

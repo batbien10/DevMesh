@@ -301,11 +301,14 @@ public class PrintMode {
                 case AgentEvent.CommandTimedOut e -> {}
                 case AgentEvent.CommandCancelled e -> {}
                 case AgentEvent.RepairDiagnosing e -> {}
+                case AgentEvent.RepairDiagnosisCompleted e -> {}
                 case AgentEvent.RepairPlanned e -> {}
                 case AgentEvent.RepairApplying e -> {}
                 case AgentEvent.RepairRetesting e -> {}
+                case AgentEvent.RepairRetrying e -> {}
                 case AgentEvent.RepairSucceeded e -> {}
                 case AgentEvent.RepairFailed e -> {}
+                case AgentEvent.RepairCancelled e -> {}
 
                 case AgentEvent.PermissionRequestEvent e -> {
 

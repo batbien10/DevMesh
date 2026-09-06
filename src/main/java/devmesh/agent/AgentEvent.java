@@ -29,11 +29,14 @@ public sealed interface AgentEvent {
     record CommandCancelled() implements AgentEvent {}
 
     record RepairDiagnosing(String intent, String failureSignature) implements AgentEvent {}
+    record RepairDiagnosisCompleted(String failureSignature, String failureType) implements AgentEvent {}
     record RepairPlanned(String taskId, java.util.List<String> diagnostics) implements AgentEvent {}
     record RepairApplying(String taskId) implements AgentEvent {}
     record RepairRetesting(String taskId) implements AgentEvent {}
+    record RepairRetrying(String failureSignature, int attempt) implements AgentEvent {}
     record RepairSucceeded(String taskId) implements AgentEvent {}
     record RepairFailed(String failureSignature, String reason) implements AgentEvent {}
+    record RepairCancelled(String taskId) implements AgentEvent {}
 
     record TurnComplete(int turn) implements AgentEvent {}
 

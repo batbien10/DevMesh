@@ -753,16 +753,22 @@ public class RemoteServer {
                     case AgentEvent.CommandCancelled e -> broadcast(Map.of("type", "command_cancelled", "data", Map.of()));
                     case AgentEvent.RepairDiagnosing e -> broadcast(Map.of("type", "repair_diagnosing",
                         "data", Map.of("intent", e.intent(), "failureSignature", e.failureSignature())));
+                    case AgentEvent.RepairDiagnosisCompleted e -> broadcast(Map.of("type", "repair_diagnosis_completed",
+                        "data", Map.of("failureSignature", e.failureSignature(), "failureType", e.failureType())));
                     case AgentEvent.RepairPlanned e -> broadcast(Map.of("type", "repair_planned",
                         "data", Map.of("taskId", e.taskId(), "diagnostics", e.diagnostics())));
                     case AgentEvent.RepairApplying e -> broadcast(Map.of("type", "repair_applying",
                         "data", Map.of("taskId", e.taskId())));
                     case AgentEvent.RepairRetesting e -> broadcast(Map.of("type", "repair_retesting",
                         "data", Map.of("taskId", e.taskId())));
+                    case AgentEvent.RepairRetrying e -> broadcast(Map.of("type", "repair_retrying",
+                        "data", Map.of("failureSignature", e.failureSignature(), "attempt", e.attempt())));
                     case AgentEvent.RepairSucceeded e -> broadcast(Map.of("type", "repair_succeeded",
                         "data", Map.of("taskId", e.taskId())));
                     case AgentEvent.RepairFailed e -> broadcast(Map.of("type", "repair_failed",
                         "data", Map.of("failureSignature", e.failureSignature(), "reason", e.reason())));
+                    case AgentEvent.RepairCancelled e -> broadcast(Map.of("type", "repair_cancelled",
+                        "data", Map.of("taskId", String.valueOf(e.taskId()))));
                 case AgentEvent.PermissionRequestEvent e -> {
 
                     String id = "perm_" + System.nanoTime();

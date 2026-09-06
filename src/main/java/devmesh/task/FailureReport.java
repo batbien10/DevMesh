@@ -24,6 +24,10 @@ public record FailureReport(
                 output == null || output.isBlank() ? List.of() : List.of(firstLine(output)));
     }
 
+    public FailureType type() {
+        return FailureClassifier.classify(this);
+    }
+
     private static String firstLine(String value) {
         if (value == null) return "";
         return value.lines().findFirst().orElse("").strip();

@@ -18,6 +18,10 @@ public final class RepairController {
     private RepairState state = RepairState.IDLE;
     private int retries;
     private String repairTaskId;
+    private FailureReport lastFailure;
+    private RepairDiagnosis lastDiagnosis;
+    private java.util.List<String> repairPlan = java.util.List.of();
+    private boolean cancelled;
 
     public RepairController(TaskList taskList, BlockingQueue<AgentEvent> eventQueue, int maxRetries) {
         this.taskList = taskList;
@@ -27,9 +31,21 @@ public final class RepairController {
 
     public RepairState state() { return state; }
     public int retries() { return retries; }
+    public FailureReport lastFailure() { return lastFailure; }
+    public RepairDiagnosis lastDiagnosis() { return lastDiagnosis; }
+    public java.util.List<String> repairPlan() { return repairPlan; }
+
+    public synchronized void cancel() {
+        cancelled = true;
+        state = RepairState.CANCELLED;
+        transition(TaskList.Status.BLOCKED, "repair_cancelled");
+        emit(new AgentEvent.RepairCancelled(repairTaskId));
+    }
 
     /** Records a runtime failure and opens a bounded repair cycle for the agent to execute. */
     public synchronized void observeFailure(FailureReport failure) {
+        if (cancelled) return;
+        lastFailure = failure;
         state = RepairState.FAILED;
         emit(new AgentEvent.RepairDiagnosing(failure.intent(), failure.signature()));
         if (!attemptedFailures.add(failure.signature()) || retries >= maxRetries) {
@@ -39,6 +55,8 @@ public final class RepairController {
             return;
         }
         retries++;
+        if (retries > 1) emit(new AgentEvent.RepairRetrying(failure.signature(), retries));
+        diagnoseAndPlan(failure);
         repairTaskId = ensureRepairTodo(failure);
         transition(TaskList.Status.IN_PROGRESS, "repair_started");
         state = RepairState.REPAIRING;
@@ -49,6 +67,12 @@ public final class RepairController {
     /** Completes the runtime-driven repair cycle when a later command succeeds or fails. */
     public synchronized void observeRetest(ProcessResult result) {
         if (repairTaskId == null || state != RepairState.REPAIRING) return;
+        if (result != null && result.status() == ProcessResult.Status.TIMEOUT) {
+            state = RepairState.TIMEOUT;
+            failTodo("retest_timeout");
+            emit(new AgentEvent.RepairFailed("retest", "retest timed out"));
+            return;
+        }
         state = RepairState.RETESTING;
         emit(new AgentEvent.RepairRetesting(repairTaskId));
         if (result != null && result.succeeded()) {
@@ -70,6 +94,8 @@ public final class RepairController {
     public synchronized RepairState repair(FailureReport failure,
                                             Function<FailureReport, Boolean> repairAction,
                                             Supplier<ProcessResult> retest) {
+        if (cancelled) return RepairState.CANCELLED;
+        lastFailure = failure;
         state = RepairState.FAILED;
         emit(new AgentEvent.RepairDiagnosing(failure.intent(), failure.signature()));
         if (!attemptedFailures.add(failure.signature()) || retries >= maxRetries) {
@@ -80,6 +106,8 @@ public final class RepairController {
         }
 
         retries++;
+        if (retries > 1) emit(new AgentEvent.RepairRetrying(failure.signature(), retries));
+        diagnoseAndPlan(failure);
         repairTaskId = ensureRepairTodo(failure);
         transition(TaskList.Status.IN_PROGRESS, "repair_started");
         state = RepairState.REPAIR_PLANNING;
@@ -119,6 +147,22 @@ public final class RepairController {
                 .orElseGet(() -> taskList.create("Repair " + failure.intent(),
                         "Diagnose and repair: " + failure.signature(), "Repairing " + failure.intent(),
                         Map.of("repair", true, "failure_signature", failure.signature())).getId());
+    }
+
+    private void diagnoseAndPlan(FailureReport failure) {
+        String rootCause = failure.diagnostics().isEmpty()
+                ? failure.output().lines().findFirst().orElse("No diagnostic output")
+                : failure.diagnostics().getFirst();
+        var verification = switch (failure.type()) {
+            case TEST_FAILURE -> java.util.List.of("run targeted test", "run broader tests");
+            case COMPILE_ERROR -> java.util.List.of("compile affected module", "run full tests");
+            case DEPENDENCY_ERROR, CONFIGURATION_ERROR -> java.util.List.of("rerun dependency/build command");
+            default -> java.util.List.of("rerun failed command");
+        };
+        lastDiagnosis = new RepairDiagnosis(failure.type(), rootCause, failure.diagnostics(), verification);
+        repairPlan = java.util.List.of("Inspect " + failure.type().name().toLowerCase(),
+                "Apply minimal corrective action", verification.getFirst());
+        emit(new AgentEvent.RepairDiagnosisCompleted(failure.signature(), failure.type().name()));
     }
 
     private void transition(TaskList.Status status, String reason) {
