@@ -21,7 +21,8 @@ public class OpenAiClient implements LlmClient {
 
     private final com.openai.client.OpenAIClient sdkClient;
     private final String model;
-    private final boolean thinking;
+    private final ModelCapabilities capabilities;
+    private volatile ModelRuntimeSettings runtimeSettings;
     private volatile String systemPrompt;
     private volatile int maxOutputTokens;
 
@@ -36,7 +37,9 @@ public class OpenAiClient implements LlmClient {
                 .baseUrl(cfg.getBaseUrl())
                 .build();
         this.model = cfg.getModel();
-        this.thinking = cfg.isThinking();
+        this.capabilities = ModelCapabilityResolver.resolve(cfg);
+        this.runtimeSettings = new ModelRuntimeSettings();
+        this.runtimeSettings.setThinkingEnabled(cfg.isThinking());
         this.systemPrompt = systemPrompt;
         this.maxOutputTokens = cfg.resolvedMaxOutputTokens();
     }
@@ -50,6 +53,14 @@ public class OpenAiClient implements LlmClient {
     public void setMaxOutputTokens(int tokens) {
         this.maxOutputTokens = tokens;
     }
+
+    @Override
+    public void setRuntimeSettings(ModelRuntimeSettings settings) {
+        this.runtimeSettings = settings == null ? new ModelRuntimeSettings() : settings;
+    }
+
+    @Override
+    public ModelCapabilities capabilities() { return capabilities; }
 
     @Override
     public BlockingQueue<StreamEvent> stream(ConversationManager conv, List<Map<String, Object>> tools) {
@@ -77,9 +88,18 @@ public class OpenAiClient implements LlmClient {
                 .instructions(systemPrompt)
                 .inputOfResponse(buildInput(conv.getMessagesForModel()));
 
-        if (thinking) {
+        if (Boolean.TRUE.equals(runtimeSettings.thinkingEnabled())
+            && capabilities.reasoning() == CapabilitySupport.SUPPORTED) {
+            devmesh.llm.ReasoningEffort effort = runtimeSettings.reasoningEffort();
+            devmesh.llm.ReasoningEffort selected = capabilities.supportedReasoningEfforts().contains(effort)
+                    ? effort : devmesh.llm.ReasoningEffort.HIGH;
+                com.openai.models.ReasoningEffort nativeEffort = switch (selected) {
+                case LOW -> com.openai.models.ReasoningEffort.LOW;
+                case MEDIUM -> com.openai.models.ReasoningEffort.MEDIUM;
+                case HIGH, XHIGH -> com.openai.models.ReasoningEffort.HIGH;
+                };
             paramsBuilder.reasoning(Reasoning.builder()
-                    .effort(ReasoningEffort.HIGH)
+                    .effort(nativeEffort)
                     .summary(Reasoning.Summary.DETAILED)
                     .build());
         }

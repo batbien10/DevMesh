@@ -23,4 +23,10 @@ public class ModelResolver {
         String resolved = resolve(model);
         return resolved.contains("claude");
     }
+
+    public static boolean supportsReasoning(String model) {
+        String resolved = resolve(model).toLowerCase();
+        return resolved.contains("o1") || resolved.contains("o3") || resolved.contains("o4")
+                || resolved.contains("gpt-5");
+    }
 }

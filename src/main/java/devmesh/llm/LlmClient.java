@@ -14,6 +14,10 @@ public interface LlmClient {
 
     default void setMaxOutputTokens(int tokens) {}
 
+    default void setRuntimeSettings(ModelRuntimeSettings settings) {}
+
+    default ModelCapabilities capabilities() { return ModelCapabilities.unknown(); }
+
     void setSystemPrompt(String prompt);
 
     static LlmClient create(ProviderConfig cfg, String systemPrompt) {

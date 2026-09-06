@@ -20,7 +20,8 @@ public class AnthropicClient implements LlmClient {
     private final com.anthropic.client.AnthropicClient sdkClient;
     private final String model;
 
-    private final boolean thinking;
+    private final ModelCapabilities capabilities;
+    private volatile ModelRuntimeSettings runtimeSettings;
     private volatile String systemPrompt;
     private volatile int maxOutputTokens;
 
@@ -35,7 +36,9 @@ public class AnthropicClient implements LlmClient {
                 .baseUrl(cfg.getBaseUrl())
                 .build();
         this.model = ModelResolver.resolve(cfg.getModel());
-        this.thinking = cfg.isThinking();
+        this.capabilities = ModelCapabilityResolver.resolve(cfg);
+        this.runtimeSettings = new ModelRuntimeSettings();
+        this.runtimeSettings.setThinkingEnabled(cfg.isThinking());
         this.systemPrompt = systemPrompt;
         this.maxOutputTokens = cfg.resolvedMaxOutputTokens();
 
@@ -83,6 +86,14 @@ public class AnthropicClient implements LlmClient {
     }
 
     @Override
+    public void setRuntimeSettings(ModelRuntimeSettings settings) {
+        this.runtimeSettings = settings == null ? new ModelRuntimeSettings() : settings;
+    }
+
+    @Override
+    public ModelCapabilities capabilities() { return capabilities; }
+
+    @Override
     public BlockingQueue<StreamEvent> stream(ConversationManager conv, List<Map<String, Object>> tools) {
         var queue = new LinkedBlockingQueue<StreamEvent>(64);
 
@@ -119,7 +130,7 @@ public class AnthropicClient implements LlmClient {
                 .system(MessageCreateParams.System.ofTextBlockParams(List.of(systemBlock)))
                 .messages(messageParams);
 
-        if (thinking) {
+        if (Boolean.TRUE.equals(runtimeSettings.thinkingEnabled()) && capabilities.supportsThinking()) {
             if (ModelResolver.supportsAdaptiveThinking(model)) {
                 paramsBuilder.thinking(ThinkingConfigAdaptive.builder().build());
             } else {

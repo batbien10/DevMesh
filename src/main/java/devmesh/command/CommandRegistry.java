@@ -96,19 +96,34 @@ public class CommandRegistry {
         String lower = prefix.toLowerCase(Locale.ROOT);
         return commands.stream()
                 .filter(c -> !c.hidden())
-                .filter(c -> {
-                    if (c.name().toLowerCase(Locale.ROOT).startsWith(lower)) {
-                        return true;
-                    }
-                    for (var alias : c.aliases()) {
-                        if (alias.toLowerCase(Locale.ROOT).startsWith(lower)) {
-                            return true;
-                        }
-                    }
-                    return false;
-                })
-                .sorted(Comparator.comparing(Command::name))
+                .map(c -> new AbstractMap.SimpleEntry<>(c, matchScore(c, lower)))
+                .filter(entry -> entry.getValue() >= 0)
+                .sorted(Comparator.comparingInt((Map.Entry<Command, Integer> entry) -> entry.getValue())
+                    .thenComparingInt(entry -> commands.indexOf(entry.getKey())))
+                .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
+    }
+
+    private static int matchScore(Command command, String query) {
+        int best = matchScore(command.name(), query);
+        for (String alias : command.aliases()) best = Math.min(best, matchScore(alias, query));
+        return best;
+    }
+
+    private static int matchScore(String value, String query) {
+        String candidate = value.toLowerCase(Locale.ROOT);
+        if (query.isEmpty()) return 0;
+        if (candidate.equals(query)) return 1;
+        if (candidate.startsWith(query)) return 2;
+        int position = 0;
+        int gaps = 0;
+        for (int i = 0; i < query.length(); i++) {
+            int found = candidate.indexOf(query.charAt(i), position);
+            if (found < 0) return -1;
+            gaps += found - position;
+            position = found + 1;
+        }
+        return 10 + gaps;
     }
 
     /** Finds a command by exact name or alias match. */
@@ -204,12 +219,61 @@ public class CommandRegistry {
                 }
         );
 
+            register(
+                new Command("model", "Select the active AI model",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
+            register(
+                new Command("provider", "Select the active provider",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
+            register(
+                new Command("mode", "Select model reasoning mode",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
+            register(
+                new Command("thinking", "Toggle model thinking",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
+            register(
+                new Command("model-settings", "Configure model runtime settings",
+                    new String[]{}, CommandType.LOCAL_UI, false),
+                null
+            );
+
+            register(
+                new Command("context", "Show context and session information",
+                    new String[]{}, CommandType.LOCAL, false),
+                ctx -> {
+                    int[] tokens = ctx.tokenCount().get();
+                    return "Context\n"
+                        + "  Session: " + ctx.sessionInfo().get() + "\n"
+                        + "  Tokens: " + tokens[0] + " in / " + tokens[1] + " out\n"
+                        + "  Model: " + ctx.model();
+                }
+            );
+            register(
+                new Command("tools", "Show the number of available tools",
+                    new String[]{}, CommandType.LOCAL, false),
+                ctx -> "Available tools: " + ctx.toolCount().getAsInt()
+            );
+
         // /clear (LOCAL_UI)
         register(
                 new Command("clear", "Clear conversation and start fresh",
                         new String[]{}, CommandType.LOCAL_UI, false),
                 null
         );
+
+            register(
+                new Command("quit", "Exit DevMesh",
+                    new String[]{"q"}, CommandType.LOCAL_UI, false),
+                null
+            );
 
         // /compact (LOCAL_UI, alias: c)
         register(

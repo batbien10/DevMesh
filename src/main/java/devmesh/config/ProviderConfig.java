@@ -2,6 +2,10 @@ package devmesh.config;
 
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.List;
+import devmesh.llm.CapabilitySupport;
+import devmesh.llm.ModelCapabilities;
+import devmesh.llm.ReasoningEffort;
 
 public class ProviderConfig {
 
@@ -19,6 +23,12 @@ public class ProviderConfig {
     private String apiKey;
     private Map<String, String> headers = new LinkedHashMap<>();
     private boolean thinking;
+    private Boolean supportsReasoning;
+    private Boolean supportsReasoningEffort;
+    private Boolean supportsTemperature;
+    private Boolean supportsTopP;
+    private Boolean supportsVerbosity;
+    private List<String> reasoningEfforts = List.of();
 
     private int contextWindow;
     private int maxOutputTokens;
@@ -55,6 +65,31 @@ public class ProviderConfig {
 
     public boolean isThinking() { return thinking; }
     public void setThinking(boolean thinking) { this.thinking = thinking; }
+
+    public Boolean getSupportsReasoning() { return supportsReasoning; }
+    public void setSupportsReasoning(Boolean value) { supportsReasoning = value; }
+    public Boolean getSupportsReasoningEffort() { return supportsReasoningEffort; }
+    public void setSupportsReasoningEffort(Boolean value) { supportsReasoningEffort = value; }
+    public Boolean getSupportsTemperature() { return supportsTemperature; }
+    public void setSupportsTemperature(Boolean value) { supportsTemperature = value; }
+    public Boolean getSupportsTopP() { return supportsTopP; }
+    public void setSupportsTopP(Boolean value) { supportsTopP = value; }
+    public Boolean getSupportsVerbosity() { return supportsVerbosity; }
+    public void setSupportsVerbosity(Boolean value) { supportsVerbosity = value; }
+    public List<String> getReasoningEfforts() { return reasoningEfforts; }
+    public void setReasoningEfforts(List<String> values) { reasoningEfforts = values == null ? List.of() : List.copyOf(values); }
+
+    public ModelCapabilities configuredCapabilities() {
+        return new ModelCapabilities(
+                support(supportsReasoning), support(supportsReasoningEffort), support(supportsTemperature),
+                support(supportsTopP), support(supportsVerbosity),
+                reasoningEfforts.stream().map(ReasoningEffort::parse).filter(java.util.Objects::nonNull).toList());
+    }
+
+    private static CapabilitySupport support(Boolean value) {
+        return value == null ? CapabilitySupport.UNKNOWN
+                : value ? CapabilitySupport.SUPPORTED : CapabilitySupport.UNSUPPORTED;
+    }
 
     public int getContextWindow() { return contextWindow; }
 

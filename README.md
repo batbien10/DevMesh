@@ -8,7 +8,41 @@
 ![MCP](https://img.shields.io/badge/MCP-supported-5C4EE5)
 ![Author](https://img.shields.io/badge/author-td-6E56CF)
 
-DevMesh is a local Coding Agent execution engine built with Java 21. It brings together multi-model access, the ReAct loop, context management, Tool/MCP, Skills, multi-agent collaboration, secure execution, run traces, and quality evaluation in one end-to-end system. It supports an interactive terminal, one-shot tasks, and a remote Web interface, and can connect to Anthropic, OpenAI, OpenRouter, and other OpenAI Chat Completions-compatible services.
+DevMesh is a local Coding Agent execution engine built with Java 21. It brings together multi-model access, the ReAct loop, context management, Tool/MCP, Skills, multi-agent collaboration, secure execution, run traces, and quality evaluation in one end-to-end system. It supports a Vim-inspired keyboard-first terminal, one-shot tasks, and a remote Web interface, and can connect to Anthropic, OpenAI, OpenRouter, and other OpenAI Chat Completions-compatible services.
+
+## DevMesh 2.0 TUI
+
+The interactive terminal has explicit keyboard modes. The prompt starts in `INSERT`; press `Esc` for `NORMAL`, `i` or `a` to return to editing, and `/` to open the searchable slash popup. Popup commands come from the central command registry, so user commands and aliases participate in the same filtering and selection flow.
+
+| Key | Action |
+| --- | --- |
+| `i` | Enter INSERT mode |
+| `a` | Enter INSERT mode after the cursor |
+| `Esc` | Return to NORMAL mode or close the popup |
+| `/` | Open and filter the slash command popup |
+| `j` / `k`, `Down` / `Up` | Move through a popup or selector |
+| `Enter` | Select a popup item or submit the prompt |
+| `Tab` | Complete the highlighted slash command |
+| `Ctrl+J` | Insert a newline in the prompt |
+| `Ctrl+D` / `Ctrl+U` | Page the conversation down / up |
+
+Available slash commands include `/help`, `/model`, `/provider`, `/context`, `/tools`, `/session`, `/skills`, `/clear`, `/compact`, `/permission`, `/resume`, `/rewind`, `/review`, `/sandbox`, and `/quit`. `/model` and `/provider` reuse the configured provider selector; no model names or credentials are hardcoded into the TUI.
+
+Model runtime settings are provider and model dependent. Use `/mode`, `/thinking`, or `/model-settings` to open the keyboard popup. The popup only shows capabilities declared by the provider adapter or explicitly configured for an OpenAI-compatible/OpenRouter provider. Supported settings are sent using native request fields; unsupported and unknown settings are omitted rather than guessed. Use `/mode default` to restore provider-default behavior.
+
+Compatible-provider capability metadata can be declared alongside a provider when the endpoint documents support:
+
+```yaml
+providers:
+  - name: compatible-reasoning
+    protocol: openai-compat
+    base_url: https://example.test/v1
+    model: vendor/model
+    supports_reasoning: true
+    supports_reasoning_effort: true
+    reasoning_efforts: [low, medium, high]
+    supports_temperature: true
+```
 
 > This repository was organized and published in August 2026; most development took place locally before that.
 
@@ -82,7 +116,7 @@ The Schema token figure above is an **estimate** based on canonical compact JSON
 - Git
 - Windows, Linux, or macOS
 
-The [`v1.0.3` release](https://github.com/batbiendaik/DevMesh/releases/tag/v1.0.3) packages `devmesh.jar`, a Java 21 runtime, and launch scripts in one bundle for Linux, Windows, and macOS:
+The `2.0.0` release packages `devmesh.jar`, a Java 21 runtime, and launch scripts in one bundle for Linux, Windows, and macOS:
 
 - Linux x64: `devmesh-jdk21-linux-x64.tar.gz`
 - Windows x64: `devmesh-jdk21-windows-x64.zip`

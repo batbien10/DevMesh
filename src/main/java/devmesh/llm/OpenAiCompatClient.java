@@ -39,6 +39,8 @@ public class OpenAiCompatClient implements LlmClient {
     private final String apiKey;
     private final String model;
     private final Map<String, String> headers;
+    private final ModelCapabilities capabilities;
+    private volatile ModelRuntimeSettings runtimeSettings;
     private volatile String systemPrompt;
     private volatile int maxOutputTokens;
 
@@ -63,6 +65,9 @@ public class OpenAiCompatClient implements LlmClient {
         this.headers = Map.copyOf(configuredHeaders);
         this.systemPrompt = systemPrompt;
         this.maxOutputTokens = cfg.resolvedMaxOutputTokens();
+        this.capabilities = ModelCapabilityResolver.resolve(cfg);
+        this.runtimeSettings = new ModelRuntimeSettings();
+        this.runtimeSettings.setThinkingEnabled(cfg.isThinking());
 
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
@@ -78,6 +83,14 @@ public class OpenAiCompatClient implements LlmClient {
     public void setMaxOutputTokens(int tokens) {
         this.maxOutputTokens = tokens;
     }
+
+    @Override
+    public void setRuntimeSettings(ModelRuntimeSettings settings) {
+        this.runtimeSettings = settings == null ? new ModelRuntimeSettings() : settings;
+    }
+
+    @Override
+    public ModelCapabilities capabilities() { return capabilities; }
 
     // ------------------------------------------------------------------
     // Streaming
@@ -363,12 +376,31 @@ public class OpenAiCompatClient implements LlmClient {
     // Request body building
     // ------------------------------------------------------------------
 
-    private String buildRequestBody(List<Message> messages, List<Map<String, Object>> tools)
+    String buildRequestBody(List<Message> messages, List<Map<String, Object>> tools)
             throws JsonProcessingException {
         ObjectNode root = MAPPER.createObjectNode();
         root.put("model", model);
         root.put("stream", true);
         root.put("max_tokens", maxOutputTokens);
+
+        if (capabilities.reasoning() == CapabilitySupport.SUPPORTED
+                && Boolean.TRUE.equals(runtimeSettings.thinkingEnabled())) {
+            root.put("reasoning", true);
+        }
+        if (capabilities.reasoningEffort() == CapabilitySupport.SUPPORTED
+                && runtimeSettings.reasoningEffort() != null
+                && capabilities.supportedReasoningEfforts().contains(runtimeSettings.reasoningEffort())) {
+            root.put("reasoning_effort", runtimeSettings.reasoningEffort().wireValue());
+        }
+        if (capabilities.temperature() == CapabilitySupport.SUPPORTED && runtimeSettings.temperature() != null) {
+            root.put("temperature", runtimeSettings.temperature());
+        }
+        if (capabilities.topP() == CapabilitySupport.SUPPORTED && runtimeSettings.topP() != null) {
+            root.put("top_p", runtimeSettings.topP());
+        }
+        if (capabilities.verbosity() == CapabilitySupport.SUPPORTED && runtimeSettings.verbosity() != null) {
+            root.put("verbosity", runtimeSettings.verbosity());
+        }
 
         // stream_options: ask for usage in stream
         ObjectNode streamOpts = MAPPER.createObjectNode();

@@ -20,7 +20,7 @@ import sun.misc.Signal;
 
 public class DevMesh {
 
-    public static final String VERSION = "1.0.3";
+    public static final String VERSION = "2.0.0";
 
     // Default listening address for Remote mode.
     private static final String DEFAULT_REMOTE_ADDR = ":18888";

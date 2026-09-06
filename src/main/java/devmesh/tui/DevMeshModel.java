@@ -10,6 +10,10 @@ import devmesh.conversation.ConversationManager;
 import devmesh.history.HistoryStore;
 import devmesh.hook.HookEngine;
 import devmesh.llm.LlmClient;
+import devmesh.llm.CapabilitySupport;
+import devmesh.llm.ModelCapabilities;
+import devmesh.llm.ModelRuntimeSettings;
+import devmesh.llm.ReasoningEffort;
 import devmesh.mcp.McpManager;
 import devmesh.memory.MemoryManager;
 import devmesh.memory.MemoryRecall;
@@ -77,6 +81,8 @@ public class DevMeshModel implements Model {
 
     private AppState state;
     private LlmClient client;
+    private ModelCapabilities modelCapabilities = ModelCapabilities.unknown();
+    private ModelRuntimeSettings runtimeSettings = new ModelRuntimeSettings();
     private ConversationManager conversation;
     private Agent agent;
     private ToolRegistry registry;
@@ -138,6 +144,12 @@ public class DevMeshModel implements Model {
     private boolean slashMenuOpen;
     private List<devmesh.command.Command> slashMatches = new ArrayList<>();
     private int slashCursor;
+    private PopupController slashPopup = new PopupController(List.of());
+    private TuiMode inputMode = TuiMode.NORMAL;
+    private boolean runtimePopupOpen;
+    private String runtimePopupKind = "";
+    private List<String> runtimePopupOptions = List.of();
+    private int runtimePopupCursor;
 
 
     private final HistoryStore historyStore = new HistoryStore();
@@ -469,6 +481,7 @@ public class DevMeshModel implements Model {
                 selectedProvider = providers.get(providerCursor);
                 initializeProvider();
                 state = AppState.CHAT;
+                inputMode = TuiMode.INSERT;
                 bannerPrinted = true;
                 yield UpdateResult.from(this, Command.println(renderBanner() + "\n"));
             }
@@ -488,6 +501,9 @@ public class DevMeshModel implements Model {
             String systemPrompt = rebuildSystemPrompt(workDir);
 
             client = LlmClient.create(selectedProvider, systemPrompt);
+            modelCapabilities = client.capabilities();
+            runtimeSettings.resetUnsupported(modelCapabilities);
+            client.setRuntimeSettings(runtimeSettings);
             String protocol = selectedProvider.getProtocol();
 
             registry = ToolRegistry.createDefault();
@@ -798,6 +814,29 @@ public class DevMeshModel implements Model {
     private UpdateResult<DevMeshModel> handleChatKey(KeyPressMessage kpm) {
         String key = kpm.key();
 
+        if (runtimePopupOpen) return handleRuntimePopupKey(kpm);
+
+        if (inputMode == TuiMode.NORMAL) {
+            if (key.equals("i")) {
+                inputMode = TuiMode.INSERT;
+                return UpdateResult.from(this);
+            }
+            if (key.equals("a")) {
+                inputCursor = Math.min(inputBuffer.length(), inputCursor + 1);
+                inputMode = TuiMode.INSERT;
+                return UpdateResult.from(this);
+            }
+            if (key.equals("h") || key.equals("left")) {
+                inputCursor = Math.max(0, inputCursor - 1);
+                return UpdateResult.from(this);
+            }
+            if (key.equals("l") || key.equals("right")) {
+                inputCursor = Math.min(inputBuffer.length(), inputCursor + 1);
+                return UpdateResult.from(this);
+            }
+            if (key.equals("escape")) return UpdateResult.from(this);
+        }
+
         // shift+tab: cycle permission mode
         if (key.equals("shift+tab") && !streaming && permChecker != null) {
             var current = permChecker.getMode();
@@ -826,6 +865,17 @@ public class DevMeshModel implements Model {
         // ctrl+j: insert newline without sending
         if (key.equals("ctrl+j")) {
             inputBuffer.insert(inputCursor, '\n'); inputCursor++;
+            return UpdateResult.from(this);
+        }
+
+        if (key.equals("ctrl+d")) {
+            scrollOffset = Math.max(scrollOffset - Math.max(height - 6, 1), 0);
+            userScrolled = scrollOffset > 0;
+            return UpdateResult.from(this);
+        }
+        if (key.equals("ctrl+u")) {
+            scrollOffset = Math.min(scrollOffset + Math.max(height - 6, 1), Math.max(totalContentLines - 3, 0));
+            userScrolled = true;
             return UpdateResult.from(this);
         }
 
@@ -880,6 +930,7 @@ public class DevMeshModel implements Model {
                         var cmd = slashMatches.get(slashCursor);
                         inputBuffer.setLength(0); inputCursor = 0;
                         slashMenuOpen = false;
+                        inputMode = TuiMode.NORMAL;
                         yield executeSlashCommand(cmd, "");
                     }
                     yield UpdateResult.from(this);
@@ -891,11 +942,13 @@ public class DevMeshModel implements Model {
                         inputBuffer.append("/" + cmd.name() + " ");
                         inputCursor = inputBuffer.length();
                         slashMenuOpen = false;
+                        inputMode = TuiMode.INSERT;
                     }
                     yield UpdateResult.from(this);
                 }
                 case "escape" -> {
                     slashMenuOpen = false;
+                    inputMode = TuiMode.NORMAL;
                     yield UpdateResult.from(this);
                 }
                 default -> {
@@ -1091,11 +1144,19 @@ public class DevMeshModel implements Model {
         String text = inputBuffer.toString();
         if (text.startsWith("/") && !text.contains(" ") && historyIndex < 0) {
             String prefix = text.substring(1);
-            slashMatches = cmdRegistry.search(prefix);
+            slashPopup = new PopupController(cmdRegistry.listVisible().stream()
+                .map(command -> new PopupItem(command.name(), command.description()))
+                .toList());
+            slashPopup.setQuery(prefix);
+            slashMatches = slashPopup.filteredItems().stream()
+                .map(item -> cmdRegistry.find(item.value()).orElseThrow())
+                .toList();
             slashMenuOpen = !slashMatches.isEmpty();
+            inputMode = slashMenuOpen ? TuiMode.SLASH : TuiMode.INSERT;
             slashCursor = 0;
         } else {
             slashMenuOpen = false;
+            inputMode = TuiMode.INSERT;
         }
     }
 
@@ -1128,6 +1189,125 @@ public class DevMeshModel implements Model {
     private static final Set<String> AT_SKIP_DIRS = Set.of(
             ".git", "node_modules", ".venv", "__pycache__", ".devmesh", "build", ".gradle");
 
+    private void openRuntimePopup(String kind) {
+        if ("thinking".equals(kind) && !modelCapabilities.supportsThinking()) {
+            chatMessages.add(new ChatMessage("system", modelCapabilities.reasoning() == CapabilitySupport.UNKNOWN
+                    ? "Thinking control is unknown for the current model/provider. Configure capability metadata to enable it."
+                    : "Thinking control is not supported by the current model/provider."));
+            return;
+        }
+        runtimePopupKind = kind;
+        runtimePopupOptions = switch (kind) {
+            case "mode" -> {
+                var options = new ArrayList<String>();
+                options.add("Default");
+                if (modelCapabilities.reasoningEffort() == CapabilitySupport.SUPPORTED) {
+                    options.addAll(modelCapabilities.supportedReasoningEfforts().stream()
+                            .map(e -> e.wireValue().substring(0, 1).toUpperCase() + e.wireValue().substring(1))
+                            .toList());
+                }
+                yield List.copyOf(options);
+            }
+            case "thinking" -> List.of("On", "Off");
+            case "settings" -> {
+                var options = new ArrayList<String>();
+                if (modelCapabilities.reasoning() != CapabilitySupport.UNSUPPORTED) options.add("Mode");
+                if (modelCapabilities.reasoning() != CapabilitySupport.UNSUPPORTED) options.add("Thinking");
+                if (modelCapabilities.temperature() == CapabilitySupport.SUPPORTED) options.add("Temperature");
+                if (modelCapabilities.topP() == CapabilitySupport.SUPPORTED) options.add("Top P");
+                if (modelCapabilities.verbosity() == CapabilitySupport.SUPPORTED) options.add("Verbosity");
+                yield List.copyOf(options);
+            }
+            case "temperature" -> List.of("0.0", "0.3", "0.7", "1.0");
+            case "top p" -> List.of("0.5", "0.9", "1.0");
+            case "verbosity" -> List.of("Default", "low", "medium", "high");
+            default -> List.of();
+        };
+        if (runtimePopupOptions.isEmpty()) {
+            chatMessages.add(new ChatMessage("system", "No model runtime settings are known for this provider/model."));
+            return;
+        }
+        runtimePopupCursor = 0;
+        inputMode = TuiMode.POPUP;
+        runtimePopupOpen = true;
+    }
+
+    private UpdateResult<DevMeshModel> handleRuntimePopupKey(KeyPressMessage kpm) {
+        String key = kpm.key();
+        if (key.equals("escape")) {
+            runtimePopupOpen = false;
+            inputMode = TuiMode.NORMAL;
+            return UpdateResult.from(this);
+        }
+        if (key.equals("up") || key.equals("k")) {
+            runtimePopupCursor = Math.max(0, runtimePopupCursor - 1);
+            return UpdateResult.from(this);
+        }
+        if (key.equals("down") || key.equals("j")) {
+            runtimePopupCursor = Math.min(runtimePopupOptions.size() - 1, runtimePopupCursor + 1);
+            return UpdateResult.from(this);
+        }
+        if (key.equals("enter")) {
+            String selected = runtimePopupOptions.get(runtimePopupCursor);
+            String kind = runtimePopupKind;
+            runtimePopupOpen = false;
+            inputMode = TuiMode.NORMAL;
+            if ("settings".equals(kind)) {
+                openRuntimePopup(selected.toLowerCase());
+            } else if ("mode".equals(kind)) {
+                applyMode(selected);
+            } else if ("thinking".equals(kind)) {
+                applyThinking(selected);
+            } else if ("temperature".equals(kind)) {
+                runtimeSettings.setTemperature(Double.valueOf(selected));
+                if (client != null) client.setRuntimeSettings(runtimeSettings);
+            } else if ("top p".equals(kind)) {
+                runtimeSettings.setTopP(Double.valueOf(selected));
+                if (client != null) client.setRuntimeSettings(runtimeSettings);
+            } else if ("verbosity".equals(kind)) {
+                runtimeSettings.setVerbosity("Default".equals(selected) ? null : selected);
+                if (client != null) client.setRuntimeSettings(runtimeSettings);
+            }
+        }
+        return UpdateResult.from(this);
+    }
+
+    private void applyMode(String value) {
+        if ("default".equalsIgnoreCase(value)) {
+            runtimeSettings.setReasoningEffort(null);
+            runtimeSettings.setThinkingEnabled(false);
+            if (client != null) client.setRuntimeSettings(runtimeSettings);
+            return;
+        }
+        ReasoningEffort effort = ReasoningEffort.parse(value);
+        if (effort == null || modelCapabilities.reasoningEffort() != CapabilitySupport.SUPPORTED
+                || !modelCapabilities.supportedReasoningEfforts().contains(effort)) {
+            String supported = "default";
+            if (modelCapabilities.reasoningEffort() == CapabilitySupport.SUPPORTED) {
+                supported += ", " + String.join(", ", modelCapabilities.supportedReasoningEfforts().stream()
+                        .map(ReasoningEffort::wireValue).toList());
+            }
+            chatMessages.add(new ChatMessage("error", "Mode '" + value + "' is not supported by the current model.\nSupported modes: " + supported));
+            return;
+        }
+        runtimeSettings.setReasoningEffort(effort);
+        runtimeSettings.setThinkingEnabled(true);
+        if (client != null) client.setRuntimeSettings(runtimeSettings);
+    }
+
+    private void applyThinking(String value) {
+        if (!modelCapabilities.supportsThinking()) {
+            chatMessages.add(new ChatMessage("error", "Thinking control is not supported by the current model/provider."));
+            return;
+        }
+        if (!"on".equalsIgnoreCase(value) && !"off".equalsIgnoreCase(value)) {
+            chatMessages.add(new ChatMessage("error", "Usage: /thinking [on|off]"));
+            return;
+        }
+        runtimeSettings.setThinkingEnabled("on".equalsIgnoreCase(value));
+        if (client != null) client.setRuntimeSettings(runtimeSettings);
+    }
+
     private UpdateResult<DevMeshModel> executeSlashCommand(devmesh.command.Command cmd, String args) {
         return switch (cmd.type()) {
             case LOCAL -> {
@@ -1140,6 +1320,21 @@ public class DevMeshModel implements Model {
             }
             case LOCAL_UI -> {
                 switch (cmd.name()) {
+                    case "quit" -> { }
+                    case "mode" -> {
+                        if (args == null || args.isBlank()) openRuntimePopup("mode");
+                        else applyMode(args.strip());
+                    }
+                    case "thinking" -> {
+                        if (args == null || args.isBlank()) openRuntimePopup("thinking");
+                        else applyThinking(args.strip());
+                    }
+                    case "model-settings" -> openRuntimePopup("settings");
+                    case "model", "provider" -> {
+                        state = AppState.PROVIDER_SELECT;
+                        providerCursor = Math.max(0, providers.indexOf(selectedProvider));
+                        inputMode = TuiMode.NORMAL;
+                    }
                     case "clear" -> {
                         chatMessages.clear();
                         committedUpTo = 0;
@@ -1218,7 +1413,9 @@ public class DevMeshModel implements Model {
                         }
                     }
                 }
-                yield UpdateResult.from(this);
+                yield "quit".equals(cmd.name())
+                    ? UpdateResult.from(this, Command.of(QuitMessage::new))
+                    : UpdateResult.from(this);
             }
             case PROMPT -> {
                 boolean isSkill = cmd.description() != null && cmd.description().endsWith("[skill]");
@@ -2359,6 +2556,41 @@ public class DevMeshModel implements Model {
     // Chat view rendering
 
 
+    private String runtimeStatusLabel() {
+        String mode = modelCapabilities.reasoningEffort() == CapabilitySupport.UNKNOWN
+                ? "Unknown"
+                : runtimeSettings.reasoningEffort() == null ? "Default" : runtimeSettings.reasoningEffort().wireValue();
+        String thinking = switch (modelCapabilities.reasoning()) {
+            case SUPPORTED -> Boolean.TRUE.equals(runtimeSettings.thinkingEnabled()) ? "Thinking ON" : "Thinking OFF";
+            case UNSUPPORTED -> "Thinking N/A";
+            case UNKNOWN -> "Thinking Unknown";
+        };
+        return mode + " · " + thinking;
+    }
+
+    private String renderRuntimePopup() {
+        var sb = new StringBuilder();
+        String title = switch (runtimePopupKind) {
+            case "mode" -> "Model Mode";
+            case "thinking" -> "Thinking";
+            case "temperature" -> "Temperature";
+            case "top p" -> "Top P";
+            case "verbosity" -> "Verbosity";
+            default -> "Model Settings";
+        };
+        sb.append(Styles.selectLabel.render("  ┌─ " + title + " ─────────────────────┐")).append("\n");
+        if ("mode".equals(runtimePopupKind) || "thinking".equals(runtimePopupKind)) {
+            sb.append(Styles.toolDetail.render("  │ Model: " + (selectedProvider == null ? "unknown" : selectedProvider.getModel()))).append("\n");
+        }
+        for (int i = 0; i < runtimePopupOptions.size(); i++) {
+            String marker = i == runtimePopupCursor ? "❯ " : "  ";
+            var style = i == runtimePopupCursor ? Styles.selectedItem : Styles.normalItem;
+            sb.append(style.render("  │ " + marker + runtimePopupOptions.get(i))).append("\n");
+        }
+        sb.append(Styles.toolDetail.render("  └────────────────────────────────────┘")).append("\n");
+        return sb.toString();
+    }
+
     private String viewChat() {
         var sb = new StringBuilder();
         if (!bannerPrinted) {
@@ -2579,6 +2811,7 @@ public class DevMeshModel implements Model {
             int bottomHeight = 4;
             if (slashMenuOpen && !slashMatches.isEmpty()) bottomHeight += Math.min(slashMatches.size(), 8);
             if (atMenuOpen && !atMatches.isEmpty()) bottomHeight += Math.min(atMatches.size(), 8);
+            if (runtimePopupOpen) bottomHeight += runtimePopupOptions.size() + 3;
             int viewportHeight = Math.max(height - bottomHeight, 3);
 
             if (lineCount > viewportHeight && scrollOffset > lineCount - viewportHeight) {
@@ -2659,6 +2892,10 @@ public class DevMeshModel implements Model {
             }
         }
 
+        if (runtimePopupOpen) {
+            sb.append(renderRuntimePopup());
+        }
+
         String modeStr;
         var modeStyle = Styles.modeDefault;
         if (permChecker != null) {
@@ -2680,6 +2917,15 @@ public class DevMeshModel implements Model {
         }
 
         String left = modeStyle.render("  " + modeStr);
+        String inputModeLabel = switch (inputMode) {
+            case NORMAL -> "NORMAL";
+            case INSERT -> "INSERT";
+            case SLASH -> "SLASH";
+            case POPUP -> "POPUP";
+            case SEARCH -> "SEARCH";
+            case CONFIRM -> "CONFIRM";
+        };
+        left += Styles.statusItem.render("  [" + inputModeLabel + "]");
         if (permChecker != null && permChecker.getMode() != PermissionMode.DEFAULT) {
             left += Styles.toolDetail.render(" (shift+tab)");
         }
@@ -2702,11 +2948,15 @@ public class DevMeshModel implements Model {
         if (!modelStr.isEmpty()) {
             rightParts.append(Styles.statusItem.render(modelStr));
         }
+        String runtimeLabel = runtimeStatusLabel();
+        if (!runtimeLabel.isEmpty()) {
+            rightParts.append(Styles.statusItem.render(" · " + runtimeLabel));
+        }
 
         int leftLen = modeStr.length() + 2 + (permChecker != null
                 && permChecker.getMode() != PermissionMode.DEFAULT ? 12 : 0)
                 + teammateStr.length();
-        int rightLen = (mcpConnecting ? 17 : 0) + modelStr.length();
+        int rightLen = (mcpConnecting ? 17 : 0) + modelStr.length() + runtimeLabel.length() + (runtimeLabel.isEmpty() ? 0 : 3);
         int gap = Math.max(width - leftLen - rightLen - 2, 2);
         sb.append(left);
         sb.append(" ".repeat(gap));
