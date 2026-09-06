@@ -28,6 +28,9 @@ import devmesh.compact.ContextPriority;
 import devmesh.compact.ContextSnapshot;
 import devmesh.compact.TokenEstimate;
 import devmesh.task.TaskList;
+import devmesh.tool.select.ToolIntent;
+import devmesh.tool.select.ToolSelectionRequest;
+import devmesh.tool.select.ToolSelector;
 import devmesh.repository.AnalysisDepth;
 import devmesh.repository.RepositoryIntelligence;
 import devmesh.repository.RepositoryMap;
@@ -82,6 +85,7 @@ public class Agent {
     private devmesh.compact.ContextCompactor.UsageAnchor usageAnchor;
     private ContextControlPlane contextControlPlane;
     private RepositoryMap repositoryMap;
+    private ToolSelector toolSelector;
 
     /**
      * Per-conversation-thread tool-result decision log. Carries across
@@ -165,6 +169,7 @@ public class Agent {
             Path.of(workDir == null ? "." : workDir), sessionId, contextWindow, maxOutput);
         repositoryMap = new RepositoryIntelligence(Path.of(workDir == null ? "." : workDir))
             .analyze(AnalysisDepth.STANDARD);
+        toolSelector = new ToolSelector(registry, Path.of(workDir == null ? "." : workDir));
         refreshContextState(conv);
 
         int totalInput = 0, totalOutput = 0;
@@ -298,6 +303,23 @@ public class Agent {
                             ? (double) estimatedContextTokens / contextWindow : 0.0));
 
             var tools = iterToolSchemas;
+                if (toolSelector != null) {
+                String latestRequest = conv.getMessages().stream()
+                    .filter(message -> "user".equals(message.getRole()))
+                    .map(devmesh.conversation.Message::getContent)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce((first, second) -> second).orElse("");
+                ToolIntent intent = latestRequest.toLowerCase().contains("test")
+                    ? ToolIntent.RUN_TEST : latestRequest.toLowerCase().contains("build")
+                    ? ToolIntent.RUN_BUILD : latestRequest.toLowerCase().contains("find")
+                    || latestRequest.toLowerCase().contains("search") ? ToolIntent.SEARCH_CODE : ToolIntent.UNKNOWN;
+                var selected = toolSelector.select(new ToolSelectionRequest(intent, Map.of(),
+                    devmesh.platform.OperatingSystem.detect(), checker, java.util.Set.of()));
+                if (selected != null) {
+                    conv.setEphemeralContext("tool-selection", "Selected " + selected.tool().name()
+                        + " for " + intent + ": " + selected.reason());
+                }
+                }
             long inferenceStarted = tracer.startTimer();
             var streamQueue = client.stream(conv, tools);
 

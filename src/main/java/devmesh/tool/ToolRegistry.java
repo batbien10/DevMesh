@@ -120,6 +120,7 @@ public class ToolRegistry {
         reg.register(new devmesh.tool.impl.BashTool());
         reg.register(new devmesh.tool.impl.GlobTool());
         reg.register(new devmesh.tool.impl.GrepTool());
+        reg.register(new devmesh.tool.impl.ToolSearchTool(reg));
         reg.register(new devmesh.tool.impl.ProposeSkillCandidateTool(
                 java.nio.file.Path.of(System.getProperty("user.dir"))));
         return reg;
