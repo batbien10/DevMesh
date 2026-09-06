@@ -28,6 +28,9 @@ import devmesh.compact.ContextPriority;
 import devmesh.compact.ContextSnapshot;
 import devmesh.compact.TokenEstimate;
 import devmesh.task.TaskList;
+import devmesh.repository.AnalysisDepth;
+import devmesh.repository.RepositoryIntelligence;
+import devmesh.repository.RepositoryMap;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -78,6 +81,7 @@ public class Agent {
      */
     private devmesh.compact.ContextCompactor.UsageAnchor usageAnchor;
     private ContextControlPlane contextControlPlane;
+    private RepositoryMap repositoryMap;
 
     /**
      * Per-conversation-thread tool-result decision log. Carries across
@@ -159,6 +163,8 @@ public class Agent {
         conv.injectLongTermMemory(instructions, memoryContent);
         contextControlPlane = new ContextControlPlane(
             Path.of(workDir == null ? "." : workDir), sessionId, contextWindow, maxOutput);
+        repositoryMap = new RepositoryIntelligence(Path.of(workDir == null ? "." : workDir))
+            .analyze(AnalysisDepth.STANDARD);
         refreshContextState(conv);
 
         int totalInput = 0, totalOutput = 0;
@@ -569,6 +575,18 @@ public class Agent {
         int estimate = ContextCompactor.estimateTokens(conv.getMessagesForModel());
         contextControlPlane.put(new ContextItem("conversation", ContextLayer.TOOL, ContextPriority.P3_LOW,
             "conversation", new TokenEstimate(estimate, TokenEstimate.Confidence.ESTIMATED), false));
+        if (repositoryMap != null) {
+            String repositorySummary = "Project: " + repositoryMap.projectType()
+                + "\nLanguages: " + String.join(", ", repositoryMap.languages())
+                + "\nBuild systems: " + String.join(", ", repositoryMap.buildSystems())
+                + "\nSource roots: " + String.join(", ", repositoryMap.sourceRoots())
+                + "\nTest roots: " + String.join(", ", repositoryMap.testRoots())
+                + "\nImportant files: " + String.join(", ", repositoryMap.importantFiles());
+            contextControlPlane.put(new ContextItem("repository-map", ContextLayer.REPOSITORY,
+                ContextPriority.P2_MEDIUM, repositorySummary,
+                new TokenEstimate(ContextCompactor.estimateTokens(List.of(new devmesh.conversation.Message("user", repositorySummary))),
+                    TokenEstimate.Confidence.ESTIMATED), false));
+        }
         conv.setEphemeralContext("persistent-execution-state", contextControlPlane.renderPersistentState());
         }
 

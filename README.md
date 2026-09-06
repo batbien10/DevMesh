@@ -30,6 +30,8 @@ Available slash commands include `/help`, `/model`, `/provider`, `/context`, `/t
 
 Model runtime settings are provider and model dependent. Use `/mode`, `/thinking`, or `/model-settings` to open the keyboard popup. The popup only shows capabilities declared by the provider adapter or explicitly configured for an OpenAI-compatible/OpenRouter provider. Supported settings are sent using native request fields; unsupported and unknown settings are omitted rather than guessed. Use `/mode default` to restore provider-default behavior.
 
+Use `/repo` to inspect the repository map, including project type, languages, build system, modules, source roots, test roots, and indexed file count. Repository metadata is supplied to the Context Control Plane selectively; source files and generated directories are not loaded wholesale.
+
 Compatible-provider capability metadata can be declared alongside a provider when the endpoint documents support:
 
 ```yaml

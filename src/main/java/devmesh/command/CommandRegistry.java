@@ -273,6 +273,22 @@ public class CommandRegistry {
                         new String[]{}, CommandType.LOCAL_UI, false),
                 null
         );
+            register(
+                new Command("repo", "Show repository structure and indexing summary",
+                    new String[]{}, CommandType.LOCAL, false),
+                ctx -> {
+                    var map = new devmesh.repository.RepositoryIntelligence(java.nio.file.Path.of(ctx.workDir()))
+                        .analyze(devmesh.repository.AnalysisDepth.QUICK);
+                    return "Repository\n"
+                        + "  Type: " + map.projectType() + "\n"
+                        + "  Languages: " + String.join(", ", map.languages()) + "\n"
+                        + "  Build: " + String.join(", ", map.buildSystems()) + "\n"
+                        + "  Modules: " + map.modules().size() + "\n"
+                        + "  Source roots: " + String.join(", ", map.sourceRoots()) + "\n"
+                        + "  Test roots: " + String.join(", ", map.testRoots()) + "\n"
+                        + "  Indexed files: " + map.indexedFiles();
+                }
+            );
 
             register(
                 new Command("quit", "Exit DevMesh",
